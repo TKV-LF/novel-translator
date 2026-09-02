@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlossaryType {
+  character
+  term
+  location
+  skill
+  sect
+  item
+  other
+}
+
+model User {
+  id           String            @id @default(cuid())
+  username     String            @unique
+  passwordHash String
+  createdAt    DateTime          @default(now())
+  novels       Novel[]           @relation("NovelCreator")
+  progress     ReadingProgress[]
+}
+
+model Novel {
+  id              String            @id @default(cuid())
+  title           String
+  author          String?
+  genre           String            @default("kiem_hiep")
+  sourceHost      String?
+  sourceNovelUrl  String?
+  createdByUserId String
+  createdBy       User              @relation("NovelCreator", fields: [createdByUserId], references: [id])
+  createdAt       DateTime          @default(now())
+  chapters        Chapter[]
+  glossary        GlossaryEntry[]
+  progress        ReadingProgress[]
+}
+
+model Chapter {
+  id             String            @id @default(cuid())
+  novelId        String
+  novel          Novel             @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterNumber  Int?
+  title          String
+  sourceUrl      String?
+  originalText   String
+  translatedText String?
+  nextSourceUrl  String?
+  prevSourceUrl   String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  glossaryFirst  GlossaryEntry[]   @relation("GlossaryFirstChapter")
+  progress       ReadingProgress[]
+  apiUsage       ApiUsage[]
+
+  @@unique([novelId, sourceUrl])
+  @@index([novelId])
+}
+
+model GlossaryEntry {
+  id             String       @id @default(cuid())
+  novelId        String
+  novel          Novel        @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  original       String
+  translated     String
+  type           GlossaryType @default(other)
+  firstChapterId String?
+  firstChapter   Chapter?     @relation("GlossaryFirstChapter", fields: [firstChapterId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+
+  @@unique([novelId, original])
+  @@index([novelId])
+}
+
+model ReadingProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novelId   String
+  novel     Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, novelId])
+}
+
+model SystemPrompt {
+  genre      String   @id
+  promptText String
+  updatedAt  DateTime @updatedAt
+}
+
+model ApiUsage {
+  id               String   @id @default(cuid())
+  chapterId        String?
+  chapter          Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  inputTokens      Int
+  outputTokens     Int
+  estimatedCostUsd Float?
+  createdAt        DateTime @default(now())
+}
