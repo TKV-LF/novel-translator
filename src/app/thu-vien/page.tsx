@@ -92,12 +92,20 @@ export default function ThuVienPage() {
                     {novel.sourceHost ? ` · ${novel.sourceHost}` : ""}
                   </p>
                 </div>
-                <Link
-                  href={`/thuat-ngu/${novel.id}`}
-                  className="text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
-                >
-                  Thuật ngữ
-                </Link>
+                <div className="flex gap-3">
+                  <Link
+                    href={`/muc-luc/${novel.id}`}
+                    className="text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                  >
+                    Mục lục
+                  </Link>
+                  <Link
+                    href={`/thuat-ngu/${novel.id}`}
+                    className="text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                  >
+                    Thuật ngữ
+                  </Link>
+                </div>
               </div>
               {novel.progress ? (
                 <Link

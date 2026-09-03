@@ -237,6 +237,12 @@ export default function DocPage() {
         </div>
         <div className="flex flex-wrap gap-2 text-sm">
           <Link
+            href={`/muc-luc/${chapter.novel.id}?from=${chapter.id}`}
+            className="btn btn-ghost"
+          >
+            Mục lục
+          </Link>
+          <Link
             href={`/thuat-ngu/${chapter.novel.id}`}
             className="btn btn-ghost"
           >
