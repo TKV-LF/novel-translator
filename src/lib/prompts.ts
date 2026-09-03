@@ -174,7 +174,11 @@ QUY TẮC:
    - 高卢鸡 → Pháp
    - 脚盆鸡 / 霓虹 → Nhật
    Các biệt hiệu quốc gia khác: cũng đổi thành tên nước quen thuộc.
-5. KHÔNG giải thích, KHÔNG markdown. Chỉ trả về bản dịch tiếng Việt (chữ Quốc ngữ). Không viết lại bằng tiếng Trung. Giữ xuống dòng hội thoại.`,
+5. Xưng hô hội thoại (giọng quân đội):
+   - Bình thường giữa đồng đội: tôi / cậu. Cấp trên nói với lính: anh / các anh / cậu.
+   - Chỉ khi nói thô lỗ, mắng nhiếc, hoặc nói với kẻ thù mới dùng tao / mày (我/老子 → tao; 你/你小子 → mày) — không dùng trong lời bình thường.
+   - Tuyệt đối không dùng “tớ”. Ví dụ: 你告诉我 → “cậu nói cho tôi biết”, không viết “cậu nói cho tớ biết”.
+6. KHÔNG giải thích, KHÔNG markdown. Chỉ trả về bản dịch tiếng Việt (chữ Quốc ngữ). Không viết lại bằng tiếng Trung. Giữ xuống dòng hội thoại.`,
 };
 
 export const GLOSSARY_EXTRACT_PROMPT = `Bạn là trợ lý trích xuất thuật ngữ từ bản dịch tiểu thuyết Trung → Việt.
