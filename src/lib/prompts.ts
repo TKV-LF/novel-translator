@@ -178,6 +178,8 @@ QUY TẮC:
    - Bình thường giữa đồng đội: tôi / cậu. Cấp trên nói với lính: anh / các anh / cậu.
    - Chỉ khi nói thô lỗ, mắng nhiếc, hoặc nói với kẻ thù mới dùng tao / mày (我/老子 → tao; 你/你小子 → mày) — không dùng trong lời bình thường.
    - Tuyệt đối không dùng “tớ”. Ví dụ: 你告诉我 → “cậu nói cho tôi biết”, không viết “cậu nói cho tớ biết”.
+   - Khi nói về người (đồng đội, lính, nhân vật): CẤM “nó”. Dùng cậu ta / anh ta / cậu ấy / hắn (văn kể). Ví dụ: 它的士气 / 他的士气 → “nhuệ khí của cậu ta”, không viết “nhuệ khí của nó”.
+   - Hạn chế “thằng” — chỉ khi cố ý miệt thị, coi thường. Bình thường: cậu / anh / một cậu / một anh. Ví dụ: 有个…的 → “một cậu từng học võ”, không viết “một thằng từng học võ”.
 6. KHÔNG giải thích, KHÔNG markdown. Chỉ trả về bản dịch tiếng Việt (chữ Quốc ngữ). Không viết lại bằng tiếng Trung. Giữ xuống dòng hội thoại.`,
 };
 
