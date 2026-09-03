@@ -232,7 +232,7 @@ OUTPUT LANGUAGE LOCK:
 - Style rules below do not change the output language.
 - Do not rewrite or polish the source in Chinese.
 - PROPER NAMES: convert every person name, nickname, and place name to Hán Việt (Sino-Vietnamese) in Quốc ngữ. NEVER leave 汉字 in names. NEVER use Pinyin.
-  江水 → Giang Thủy; 郑三炮 → Trịnh Tam Pháo; 庄焱 → Trang Viêm; 陈喜娃 → Trần Hỉ Oa; 苗连 → Miêu Liên.
+  江水 → Giang Thủy; 郑三炮 → Trịnh Tam Pháo; 庄焱 → Trang Diễm; 陈喜娃 → Trần Hỉ Oa; 苗连 → Miêu Liên.
 - PRONOUNS: default is tôi / cậu between comrades, tôi to superiors, anh / các anh for peers or elders. Use tao / mày only when the speaker is coarse, hostile, or scolding. NEVER use tớ anywhere — “cậu nói cho tớ biết” must be “cậu nói cho tôi biết”.`;
 
 function countHan(text: string): number {
