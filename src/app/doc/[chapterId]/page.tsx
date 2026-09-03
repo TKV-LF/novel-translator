@@ -127,7 +127,7 @@ export default function DocPage() {
 
   const navigate = useCallback(
     async (direction: "next" | "prev") => {
-      if (!chapter) return;
+      if (!chapter || busy) return;
       const targetUrl =
         direction === "next" ? chapter.nextSourceUrl : chapter.prevSourceUrl;
       if (!targetUrl) return;
@@ -171,11 +171,40 @@ export default function DocPage() {
         setBusy(false);
       }
     },
-    [chapter, autoTranslate, router]
+    [chapter, autoTranslate, router, busy]
   );
 
   const onPrev = useCallback(() => navigate("prev"), [navigate]);
   const onNext = useCallback(() => navigate("next"), [navigate]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [chapterId]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        onNext();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        onPrev();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onNext, onPrev]);
 
   if (loading) {
     return <p className="text-slate-400">Đang tải chương…</p>;
@@ -283,6 +312,25 @@ export default function DocPage() {
           </div>
         </aside>
       ) : null}
+
+      <div className="mt-8 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={busy || !chapter.prevSourceUrl}
+          onClick={onPrev}
+        >
+          ← Chương trước
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={busy || !chapter.nextSourceUrl}
+          onClick={onNext}
+        >
+          Chương sau →
+        </button>
+      </div>
     </div>
   );
 }

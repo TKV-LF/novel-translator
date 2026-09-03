@@ -3,8 +3,8 @@
   "short_name": "Dịch Truyện",
   "start_url": "/thu-vien",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#020617",
+  "background_color": "#272729",
+  "theme_color": "#272729",
   "lang": "vi",
   "description": "Đọc tiểu thuyết Trung Quốc dịch sang tiếng Việt",
   "icons": [

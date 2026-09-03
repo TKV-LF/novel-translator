@@ -30,8 +30,8 @@ export function AppHeader({ username }: { username?: string }) {
   if (pathname?.startsWith("/dang-nhap")) return null;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+    <header className="app-header sticky top-0 z-40 border-b border-[color:var(--border)] backdrop-blur">
+      <div className="app-shell app-width mx-auto flex items-center justify-between gap-3 py-3">
         <Link
           href="/thu-vien"
           className="font-serif text-lg tracking-wide text-amber-100"
