@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { fetchAndParseChapter } from "@/lib/scrape";
 import { guessChapterNumber } from "@/lib/sites/types";
 import {
+  isTranslationMostlyChinese,
   translateChapter,
   userFacingTranslateError,
 } from "@/lib/translate";
@@ -82,7 +83,12 @@ async function maybeTranslate(
   autoTranslate: boolean
 ) {
   if (!autoTranslate) return existingTranslation ?? null;
-  if (existingTranslation) return existingTranslation;
+  if (
+    existingTranslation &&
+    !isTranslationMostlyChinese(existingTranslation)
+  ) {
+    return existingTranslation;
+  }
 
   const glossary = await db.glossaryEntry.findMany({
     where: { novelId },

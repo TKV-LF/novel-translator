@@ -5,7 +5,7 @@ import { DEFAULT_PROMPTS, GLOSSARY_EXTRACT_PROMPT } from "@/lib/prompts";
 import type { GenreKey } from "@/lib/types";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/v1/chat/completions";
-const MODEL = "deepseek-chat";
+const MODEL = "deepseek-v4-flash";
 const TEMPERATURE = 0.3;
 const MAX_TOKENS = 8192;
 const RETRIES = 2;
@@ -22,9 +22,14 @@ type ChatResult = {
   outputTokens: number;
 };
 
+function hasHanChars(text: string): boolean {
+  return /[\u4e00-\u9fff]/.test(text);
+}
+
 function buildGlossaryBlock(glossary: GlossaryItem[]): string {
-  if (!glossary.length) return "";
-  const lines = glossary.map(
+  const usable = glossary.filter((g) => g.translated && !hasHanChars(g.translated));
+  if (!usable.length) return "";
+  const lines = usable.map(
     (g) => `- ${g.original} → ${g.translated}${g.type ? ` (${g.type})` : ""}`
   );
   return `\n\nTHUẬT NGỮ / TÊN RIÊNG CỦA TRUYỆN (bắt buộc nhất quán):\n${lines.join("\n")}`;
@@ -50,7 +55,12 @@ export function userFacingTranslateError(code: string): string {
       return "Dịch quá lâu (timeout). Thử lại sau.";
     case "CHAPTER_NOT_FOUND":
       return "Không tìm thấy chương.";
+    case "TRANSLATE_STILL_CHINESE":
+      return "Model trả về tiếng Trung thay vì tiếng Việt. Thử Dịch lại.";
     default:
+      if (code.startsWith("TRANSLATE_STILL_CHINESE")) {
+        return "Model trả về tiếng Trung thay vì tiếng Việt. Thử Dịch lại.";
+      }
       return "Không thể dịch chương lúc này.";
   }
 }
@@ -79,6 +89,7 @@ async function callDeepSeek(
         model: MODEL,
         temperature: TEMPERATURE,
         max_tokens: MAX_TOKENS,
+        thinking: { type: "disabled" },
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -183,6 +194,7 @@ async function mergeGlossary(
       item.type && VALID_TYPES.has(item.type) ? item.type : "other"
     ) as GlossaryType;
     try {
+      if (hasHanChars(item.translated)) continue;
       await db.glossaryEntry.upsert({
         where: {
           novelId_original: {
@@ -213,6 +225,31 @@ export type TranslateInput = {
   novelId?: string;
 };
 
+const VIETNAMESE_OUTPUT_RULE = `
+
+OUTPUT LANGUAGE LOCK:
+- Translate Chinese into Vietnamese Quốc ngữ.
+- Style rules below do not change the output language.
+- Do not rewrite or polish the source in Chinese.
+- PROPER NAMES: convert every person name, nickname, and place name to Hán Việt (Sino-Vietnamese) in Quốc ngữ. NEVER leave 汉字 in names. NEVER use Pinyin.
+  江水 → Giang Thủy; 郑三炮 → Trịnh Tam Pháo; 庄焱 → Trang Viêm; 陈喜娃 → Trần Hỉ Oa; 苗连 → Miêu Liên.`;
+
+function countHan(text: string): number {
+  return (text.match(/[\u4e00-\u9fff]/g) ?? []).length;
+}
+
+/** True when a "translation" is still mostly Chinese. */
+export function isTranslationMostlyChinese(text: string): boolean {
+  const han = countHan(text);
+  const viet = (
+    text.match(
+      /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđĐ]/gi
+    ) ?? []
+  ).length;
+  if (han < 40) return false;
+  return han > viet * 3;
+}
+
 export type TranslateResult = {
   translatedText: string;
   inputTokens: number;
@@ -227,26 +264,42 @@ export async function translateChapter(
     ? input.genre
     : "kiem_hiep") as GenreKey;
 
-  let systemPrompt =
+  const genrePrompt =
     (await db.systemPrompt.findUnique({ where: { genre } }))?.promptText ??
     DEFAULT_PROMPTS[genre];
 
-  systemPrompt += buildGlossaryBlock(input.glossary);
+  const systemPrompt =
+    VIETNAMESE_OUTPUT_RULE + "\n\n" + genrePrompt + buildGlossaryBlock(input.glossary);
 
   const chunks = chunkText(input.originalText, 3000);
   const parts: string[] = [];
   let inputTokens = 0;
   let outputTokens = 0;
 
-  for (let i = 0; i < chunks.length; i++) {
-    const userMsg =
-      chunks.length > 1
-        ? `Dịch đoạn ${i + 1}/${chunks.length} sau đây sang tiếng Việt:\n\n${chunks[i]}`
-        : `Dịch đoạn sau sang tiếng Việt:\n\n${chunks[i]}`;
-    const result = await callDeepSeek(systemPrompt, userMsg);
-    parts.push(result.content);
+  async function translateChunk(chunk: string, index: number, total: number) {
+    const prefix =
+      total > 1
+        ? `Translate Chinese novel chunk ${index + 1}/${total} into Vietnamese Quốc ngữ. Convert every name to Hán Việt (Giang Thủy, not 江水, not Jiang Shui). Vietnamese only.\n\n`
+        : `Translate the following Chinese novel text into Vietnamese Quốc ngữ. Convert every name to Hán Việt (Giang Thủy, not 江水, not Jiang Shui). Vietnamese only.\n\n`;
+    let result = await callDeepSeek(systemPrompt, prefix + chunk);
     inputTokens += result.inputTokens;
     outputTokens += result.outputTokens;
+    if (isTranslationMostlyChinese(result.content)) {
+      result = await callDeepSeek(
+        systemPrompt,
+        `The previous answer was still Chinese — that is wrong. Translate this Chinese text into Vietnamese Quốc ngữ only. Do not output Chinese sentences.\n\n${chunk}`
+      );
+      inputTokens += result.inputTokens;
+      outputTokens += result.outputTokens;
+    }
+    if (isTranslationMostlyChinese(result.content)) {
+      throw new Error("TRANSLATE_STILL_CHINESE");
+    }
+    return result.content;
+  }
+
+  for (let i = 0; i < chunks.length; i++) {
+    parts.push(await translateChunk(chunks[i], i, chunks.length));
   }
 
   const translatedText = parts.join("\n\n");

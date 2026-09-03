@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "deploy:vercel": "npx vercel --prod --yes",
+    "ship:prod": "npm test && npm run build && npm run db:push && npm run db:seed && npm run deploy:vercel"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
