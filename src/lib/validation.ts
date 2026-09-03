@@ -15,6 +15,7 @@ export const openUrlSchema = z.object({
   title: z.string().optional(),
   genre: z.string().default("kiem_hiep"),
   autoTranslate: z.boolean().default(true),
+  updateProgress: z.boolean().default(true),
 });
 
 export const pasteChapterSchema = z.object({

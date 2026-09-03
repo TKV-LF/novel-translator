@@ -199,6 +199,7 @@ function MucLucInner() {
               novelId,
               genre,
               autoTranslate: true,
+              updateProgress: false,
             }),
           });
           const data = (await res.json()) as {

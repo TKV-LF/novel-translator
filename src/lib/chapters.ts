@@ -121,6 +121,7 @@ export async function openUrlChapter(opts: {
   title?: string;
   genre: string;
   autoTranslate: boolean;
+  updateProgress?: boolean;
   userId: string;
 }) {
   const parsed = await fetchAndParseChapter(opts.url);
@@ -130,6 +131,7 @@ export async function openUrlChapter(opts: {
     titleOverride: opts.title,
     genre: opts.genre,
     autoTranslate: opts.autoTranslate,
+    updateProgress: opts.updateProgress ?? true,
     userId: opts.userId,
     parsedTitle: parsed.title,
     originalText: parsed.content,
@@ -146,6 +148,7 @@ async function saveFetchedChapter(opts: {
   titleOverride?: string;
   genre: string;
   autoTranslate: boolean;
+  updateProgress?: boolean;
   userId: string;
   parsedTitle: string;
   originalText: string;
@@ -243,7 +246,9 @@ async function saveFetchedChapter(opts: {
     throw new Error(userFacingTranslateError(code));
   }
 
-  await updateReadingProgress(opts.userId, novel.id, chapter.id);
+  if (opts.updateProgress ?? true) {
+    await updateReadingProgress(opts.userId, novel.id, chapter.id);
+  }
 
   return {
     novel,
