@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { fetchAndParseChapter } from "@/lib/scrape";
-import { guessChapterNumber } from "@/lib/sites/types";
+import { guessChapterNumber, inferBookUrl } from "@/lib/sites/types";
 import {
   isTranslationMostlyChinese,
   translateChapter,
@@ -173,10 +173,21 @@ async function saveFetchedChapter(opts: {
     author: opts.author,
     genre: opts.genre,
     sourceHost: host,
-    sourceNovelUrl: null,
+    sourceNovelUrl: inferBookUrl(opts.url),
     sourceUrl: opts.url,
     userId: opts.userId,
   });
+
+  if (!novel.sourceNovelUrl) {
+    const bookUrl = inferBookUrl(opts.url);
+    if (bookUrl) {
+      await db.novel.update({
+        where: { id: novel.id },
+        data: { sourceNovelUrl: bookUrl },
+      });
+      novel.sourceNovelUrl = bookUrl;
+    }
+  }
 
   if (
     opts.novelTitle &&

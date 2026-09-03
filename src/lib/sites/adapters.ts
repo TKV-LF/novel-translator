@@ -2,8 +2,11 @@ import * as cheerio from "cheerio";
 import {
   absolutize,
   cleanText,
+  guessChapterNumber,
+  type ParsedBookIndex,
   type ParsedChapter,
   type SiteAdapter,
+  type TocEntry,
 } from "./types";
 
 function findNavUrl(
@@ -20,6 +23,51 @@ function findNavUrl(
     }
   });
   return found;
+}
+
+function parseTxtLinksFromHtml(
+  $: cheerio.CheerioAPI,
+  baseUrl: string,
+  pathPattern: RegExp
+): TocEntry[] {
+  const chapters: TocEntry[] = [];
+  const seen = new Set<string>();
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href");
+    const abs = absolutize(baseUrl, href);
+    if (!abs || !pathPattern.test(abs)) return;
+    if (seen.has(abs)) return;
+    seen.add(abs);
+    const title = cleanText($(el).text()) || "Chương";
+    chapters.push({
+      title,
+      sourceUrl: abs,
+      chapterNumber: guessChapterNumber(title, abs),
+    });
+  });
+  return chapters;
+}
+
+export function parseTxtLinksFromMarkdown(
+  markdown: string,
+  pathPattern: RegExp
+): TocEntry[] {
+  const chapters: TocEntry[] = [];
+  const seen = new Set<string>();
+  const re = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(markdown)) !== null) {
+    const url = m[2];
+    if (!pathPattern.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    const title = cleanText(m[1].replace(/^\d+\.\s*/, ""));
+    chapters.push({
+      title: title || "Chương",
+      sourceUrl: url,
+      chapterNumber: guessChapterNumber(title, url),
+    });
+  }
+  return chapters;
 }
 
 function extractContent($: cheerio.CheerioAPI, selectors: string[]): string {
@@ -60,6 +108,16 @@ export const shubaAdapter: SiteAdapter = {
         cleanText($(".txtnav .bookname, .bookname, .path a").eq(1).text()) ||
         null,
     } satisfies ParsedChapter;
+  },
+  parseBookIndex(html, url) {
+    const $ = cheerio.load(html);
+    const novelTitle =
+      cleanText($(".bookinfo h1, .bookname h1, h1").first().text()) ||
+      cleanText($("title").text().split("_")[0] || "") ||
+      null;
+    const chapters = parseTxtLinksFromHtml($, url, /\/txt\/\d+\/\d+/);
+    if (!chapters.length) return null;
+    return { novelTitle, bookUrl: url, chapters };
   },
 };
 

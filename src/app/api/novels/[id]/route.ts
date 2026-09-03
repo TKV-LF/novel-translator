@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
+import { mergeCatalogWithDb, parseCatalogCache } from "@/lib/catalog";
+import { inferBookUrl } from "@/lib/sites/types";
 
 export async function GET(
   _request: Request,
@@ -22,6 +24,7 @@ export async function GET(
           title: true,
           chapterNumber: true,
           sourceUrl: true,
+          originalText: true,
           translatedText: true,
           createdAt: true,
         },
@@ -41,17 +44,29 @@ export async function GET(
     );
   }
 
+  const catalog = parseCatalogCache(novel.catalogCache);
+  const inferredBookUrl =
+    novel.sourceNovelUrl ||
+    (novel.chapters[0]?.sourceUrl
+      ? inferBookUrl(novel.chapters[0].sourceUrl)
+      : null);
+  const mergedChapters = mergeCatalogWithDb(catalog, novel.chapters);
+
   return NextResponse.json({
     novel: {
-      ...novel,
-      chapters: novel.chapters.map((c) => ({
-        id: c.id,
-        title: c.title,
-        chapterNumber: c.chapterNumber,
-        sourceUrl: c.sourceUrl,
-        createdAt: c.createdAt,
-        hasTranslation: Boolean(c.translatedText),
-      })),
+      id: novel.id,
+      title: novel.title,
+      author: novel.author,
+      genre: novel.genre,
+      sourceHost: novel.sourceHost,
+      sourceNovelUrl: novel.sourceNovelUrl,
+      createdAt: novel.createdAt,
+      progress: novel.progress,
+      glossaryCount: novel._count.glossary,
+      catalogSyncedAt: catalog?.syncedAt ?? null,
+      catalogChapterCount: catalog?.chapters.length ?? 0,
+      inferredBookUrl,
+      chapters: mergedChapters,
     },
   });
 }

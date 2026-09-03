@@ -33,6 +33,7 @@ model Novel {
   genre           String            @default("kiem_hiep")
   sourceHost      String?
   sourceNovelUrl  String?
+  catalogCache    Json?
   createdByUserId String
   createdBy       User              @relation("NovelCreator", fields: [createdByUserId], references: [id])
   createdAt       DateTime          @default(now())

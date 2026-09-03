@@ -62,4 +62,19 @@ describe("site adapters", () => {
     expect(parsed.nextUrl).toContain("/ch/5.html");
     expect(parsed.prevUrl).toContain("/ch/3.html");
   });
+
+  it("parses 69shuba book index fixture", () => {
+    const url = "https://www.69shuba.com/book/84165/";
+    const parsed = shubaAdapter.parseBookIndex?.(
+      fixture("69shuba-book.html"),
+      url
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed?.novelTitle).toContain("第二次入伍");
+    expect(parsed?.chapters.length).toBe(3);
+    expect(parsed?.chapters[0]?.sourceUrl).toBe(
+      "https://www.69shuba.com/txt/84165/39146650"
+    );
+    expect(parsed?.chapters[0]?.chapterNumber).toBe(1);
+  });
 });
