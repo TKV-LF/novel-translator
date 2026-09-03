@@ -161,7 +161,7 @@ QUY TẮC:
    Viết hoa mỗi tiếng. Ví dụ:
    - 江水 → Giang Thủy (không viết 江水, không viết Jiang Shui)
    - 郑三炮 → Trịnh Tam Pháo
-   - 庄焱 → Trang Viêm
+   - 庄焱 → Trang Diễm
    - 陈喜娃 → Trần Hỉ Oa
    - 苗连 → Miêu Liên
    - 老炮 → Lão Pháo
