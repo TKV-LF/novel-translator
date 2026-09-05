@@ -18,7 +18,7 @@ function chapterKey(chapter: TocChapter): string {
   return chapter.id ?? chapter.sourceUrl ?? chapter.title;
 }
 
-const TOC_PAGE_SIZE = 50;
+const TOC_PAGE_SIZE = 200;
 
 function pageForChapterIndex(index: number): number {
   return Math.floor(index / TOC_PAGE_SIZE) + 1;
@@ -204,26 +204,36 @@ function MucLucInner() {
   }, []);
 
   const selectUntranslated = useCallback(() => {
-    setSelected(
-      new Set(
-        chapters
-          .filter((c) => !c.hasTranslation)
-          .map((c) => chapterKey(c))
-      )
-    );
-  }, [chapters]);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const c of visibleChapters) {
+        if (!c.hasTranslation) next.add(chapterKey(c));
+      }
+      return next;
+    });
+  }, [visibleChapters]);
 
   const selectUnfetched = useCallback(() => {
-    setSelected(
-      new Set(
-        chapters.filter((c) => !c.hasContent).map((c) => chapterKey(c))
-      )
-    );
-  }, [chapters]);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const c of visibleChapters) {
+        if (imported) {
+          if (!c.hasContent && !c.hasTranslation) next.add(chapterKey(c));
+        } else if (!c.hasContent) {
+          next.add(chapterKey(c));
+        }
+      }
+      return next;
+    });
+  }, [imported, visibleChapters]);
 
   const selectAll = useCallback(() => {
-    setSelected(new Set(chapters.map((c) => chapterKey(c))));
-  }, [chapters]);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const c of visibleChapters) next.add(chapterKey(c));
+      return next;
+    });
+  }, [visibleChapters]);
 
   const clearSelection = useCallback(() => {
     setSelected(new Set());
@@ -409,7 +419,7 @@ function MucLucInner() {
           disabled={busy || syncing || !chapters.length}
           onClick={selectUnfetched}
         >
-          {imported ? "Chọn chưa tải" : "Chọn chưa lấy"}
+          {imported ? "Chọn chưa tải (trang)" : "Chọn chưa lấy (trang)"}
         </button>
         {imported ? null : (
           <button
@@ -418,7 +428,7 @@ function MucLucInner() {
             disabled={busy || syncing || !chapters.length}
             onClick={selectUntranslated}
           >
-            Chọn chưa dịch
+            Chọn chưa dịch (trang)
           </button>
         )}
         <button
@@ -427,7 +437,7 @@ function MucLucInner() {
           disabled={busy || syncing || !chapters.length}
           onClick={selectAll}
         >
-          Chọn tất cả
+          Chọn tất cả (trang)
         </button>
         <button
           type="button"
