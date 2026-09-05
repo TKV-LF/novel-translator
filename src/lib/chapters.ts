@@ -441,7 +441,17 @@ export async function navigateChapter(opts: {
 export async function mergeDuplicateNovels() {
   const novels = await db.novel.findMany({
     include: {
-      chapters: true,
+      chapters: {
+        select: {
+          id: true,
+          novelId: true,
+          sourceUrl: true,
+          translatedText: true,
+          originalText: true,
+          nextSourceUrl: true,
+          prevSourceUrl: true,
+        },
+      },
       progress: true,
       glossary: true,
     },

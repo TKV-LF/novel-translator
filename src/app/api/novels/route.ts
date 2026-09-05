@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
-import { mergeDuplicateNovels } from "@/lib/chapters";
 
 export async function GET() {
   const user = await requireAuth();
@@ -10,38 +9,44 @@ export async function GET() {
     return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
   }
 
-  await mergeDuplicateNovels();
-
-  const novels = await db.novel.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      progress: {
-        where: { userId: user.id },
-        include: {
-          chapter: { select: { id: true, title: true } },
+  try {
+    const novels = await db.novel.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        progress: {
+          where: { userId: user.id },
+          include: {
+            chapter: { select: { id: true, title: true } },
+          },
         },
+        _count: { select: { chapters: true } },
       },
-      _count: { select: { chapters: true } },
-    },
-  });
+    });
 
-  return NextResponse.json({
-    novels: novels.map((n) => ({
-      id: n.id,
-      title: n.title,
-      author: n.author,
-      genre: n.genre,
-      sourceHost: n.sourceHost,
-      chapterCount: n._count.chapters,
-      progress: n.progress[0]
-        ? {
-            chapterId: n.progress[0].chapterId,
-            chapterTitle: n.progress[0].chapter.title,
-            updatedAt: n.progress[0].updatedAt,
-          }
-        : null,
-    })),
-  });
+    return NextResponse.json({
+      novels: novels.map((n) => ({
+        id: n.id,
+        title: n.title,
+        author: n.author,
+        genre: n.genre,
+        sourceHost: n.sourceHost,
+        chapterCount: n._count.chapters,
+        progress: n.progress[0]
+          ? {
+              chapterId: n.progress[0].chapterId,
+              chapterTitle: n.progress[0].chapter.title,
+              updatedAt: n.progress[0].updatedAt,
+            }
+          : null,
+      })),
+    });
+  } catch (error) {
+    console.error("NOVELS_GET_ERROR", error);
+    return NextResponse.json(
+      { message: "Không tải được thư viện" },
+      { status: 500 }
+    );
+  }
 }
 
 const createNovelSchema = z.object({
