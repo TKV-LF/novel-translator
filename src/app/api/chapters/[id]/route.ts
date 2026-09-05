@@ -22,6 +22,7 @@ export async function GET(
           title: true,
           genre: true,
           author: true,
+          sourceHost: true,
         },
       },
     },

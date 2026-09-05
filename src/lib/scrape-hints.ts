@@ -52,7 +52,7 @@ export function isJunkScrapeContent(content: string, title: string): boolean {
 export function userFacingScrapeError(code: string): string {
   switch (code) {
     case "UNSUPPORTED_SITE":
-      return "Chưa hỗ trợ site này (v1). Hãy dùng 69shuba.com / uukanshu / uuread.";
+      return "Chưa hỗ trợ site này (v1). Hãy dùng 69shuba.com / uukanshu / uuread / wikicv.org.";
     case "SCRAPE_FAILED":
       return "Không lấy được nội dung chương. Thử lại sau.";
     case "SCRAPE_BLOCKED":

@@ -1,11 +1,20 @@
 import { db } from "@/lib/db";
+import { syncNovelCatalog } from "@/lib/catalog";
 import { fetchAndParseChapter } from "@/lib/scrape";
+import { resolveAdapter } from "@/lib/sites";
 import { guessChapterNumber, inferBookUrl } from "@/lib/sites/types";
 import {
   isTranslationMostlyChinese,
   translateChapter,
   userFacingTranslateError,
 } from "@/lib/translate";
+
+export function chapterHasSavedText(ch: {
+  originalText?: string | null;
+  translatedText?: string | null;
+}): boolean {
+  return Boolean(ch.translatedText?.trim() || ch.originalText?.trim());
+}
 
 export async function updateReadingProgress(
   userId: string,
@@ -115,6 +124,20 @@ async function maybeTranslate(
   return result.translatedText;
 }
 
+async function findExistingChapter(url: string, novelId?: string) {
+  if (novelId) {
+    return db.chapter.findUnique({
+      where: { novelId_sourceUrl: { novelId, sourceUrl: url } },
+      include: { novel: true },
+    });
+  }
+  return db.chapter.findFirst({
+    where: { sourceUrl: url },
+    include: { novel: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 export async function openUrlChapter(opts: {
   url: string;
   novelId?: string;
@@ -124,13 +147,25 @@ export async function openUrlChapter(opts: {
   updateProgress?: boolean;
   userId: string;
 }) {
+  const existing = await findExistingChapter(opts.url, opts.novelId);
+  if (existing && chapterHasSavedText(existing)) {
+    if (opts.updateProgress ?? true) {
+      await updateReadingProgress(opts.userId, existing.novelId, existing.id);
+    }
+    return {
+      novel: existing.novel,
+      chapter: existing,
+    };
+  }
+
   const parsed = await fetchAndParseChapter(opts.url);
+  const pretranslated = resolveAdapter(opts.url)?.pretranslated === true;
   return saveFetchedChapter({
     url: opts.url,
     novelId: opts.novelId,
     titleOverride: opts.title,
     genre: opts.genre,
-    autoTranslate: opts.autoTranslate,
+    autoTranslate: pretranslated ? false : opts.autoTranslate,
     updateProgress: opts.updateProgress ?? true,
     userId: opts.userId,
     parsedTitle: parsed.title,
@@ -139,7 +174,40 @@ export async function openUrlChapter(opts: {
     prevUrl: parsed.prevUrl,
     novelTitle: parsed.novelTitle,
     author: parsed.author,
+    bookUrl: parsed.bookUrl,
+    pretranslated,
   });
+}
+
+export async function openBookFromUrl(opts: {
+  bookUrl: string;
+  novelId?: string;
+  title?: string;
+  genre: string;
+  userId: string;
+}) {
+  const adapter = resolveAdapter(opts.bookUrl);
+  if (!adapter) throw new Error("UNSUPPORTED_SITE");
+
+  let host: string | null = null;
+  try {
+    host = new URL(opts.bookUrl).hostname;
+  } catch {
+    host = null;
+  }
+
+  const novel = await ensureNovel({
+    novelId: opts.novelId,
+    title: opts.title?.trim() || "Truyện chưa đặt tên",
+    genre: opts.genre,
+    sourceHost: host,
+    sourceNovelUrl: opts.bookUrl,
+    userId: opts.userId,
+  });
+
+  const catalog = await syncNovelCatalog(novel.id, opts.bookUrl);
+  const refreshed = await db.novel.findUnique({ where: { id: novel.id } });
+  return { novel: refreshed ?? novel, catalog };
 }
 
 async function saveFetchedChapter(opts: {
@@ -156,6 +224,8 @@ async function saveFetchedChapter(opts: {
   prevUrl?: string | null;
   novelTitle?: string | null;
   author?: string | null;
+  bookUrl?: string | null;
+  pretranslated?: boolean;
 }) {
   let host: string | null = null;
   try {
@@ -176,13 +246,13 @@ async function saveFetchedChapter(opts: {
     author: opts.author,
     genre: opts.genre,
     sourceHost: host,
-    sourceNovelUrl: inferBookUrl(opts.url),
+    sourceNovelUrl: opts.bookUrl || inferBookUrl(opts.url),
     sourceUrl: opts.url,
     userId: opts.userId,
   });
 
   if (!novel.sourceNovelUrl) {
-    const bookUrl = inferBookUrl(opts.url);
+    const bookUrl = opts.bookUrl || inferBookUrl(opts.url);
     if (bookUrl) {
       await db.novel.update({
         where: { id: novel.id },
@@ -219,12 +289,14 @@ async function saveFetchedChapter(opts: {
       title: opts.parsedTitle,
       sourceUrl: opts.url,
       originalText: opts.originalText,
+      translatedText: opts.pretranslated ? opts.originalText : undefined,
       nextSourceUrl: opts.nextUrl ?? null,
       prevSourceUrl: opts.prevUrl ?? null,
     },
     update: {
       title: opts.parsedTitle,
       originalText: opts.originalText,
+      ...(opts.pretranslated ? { translatedText: opts.originalText } : {}),
       nextSourceUrl: opts.nextUrl ?? null,
       prevSourceUrl: opts.prevUrl ?? null,
       chapterNumber: chapterNumber ?? undefined,

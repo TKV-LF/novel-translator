@@ -18,6 +18,13 @@ export const openUrlSchema = z.object({
   updateProgress: z.boolean().default(true),
 });
 
+export const openBookSchema = z.object({
+  bookUrl: z.string().url(),
+  novelId: z.string().optional(),
+  title: z.string().optional(),
+  genre: z.string().default("kiem_hiep"),
+});
+
 export const pasteChapterSchema = z.object({
   novelId: z.string().optional(),
   title: z.string().min(1),

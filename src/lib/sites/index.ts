@@ -5,12 +5,14 @@ import {
   uureadAdapter,
 } from "./adapters";
 import type { ParsedChapter, SiteAdapter } from "./types";
+import { wikicvAdapter } from "./wikicv";
 
 const adapters: SiteAdapter[] = [
   shubaAdapter,
   uukanshuAdapter,
   twkanAdapter,
   uureadAdapter,
+  wikicvAdapter,
 ];
 
 export function resolveAdapter(urlOrHost: string): SiteAdapter | null {

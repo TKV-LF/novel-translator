@@ -62,6 +62,7 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/thu-vien`
 |------|-------------|---------|
 | `69shuba.com` | ✅ | Dùng URL dạng `/txt/{book}/{chapter}` |
 | `uuread.tw` | ✅ | |
+| `wikicv.org` / `wikicv.net` | ✅ mục lục | Đã dịch sẵn — tải về, không gọi DeepSeek |
 | `uukanshu.cc` | ✅ | |
 | `69shuba.tw` | ❌ auto URL | CAPTCHA — bookmarklet «Dịch Truyện» |
 | `twkan.com` | ❌ auto URL | Cloudflare — bookmarklet «Dịch Truyện» |

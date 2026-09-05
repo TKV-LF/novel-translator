@@ -137,6 +137,7 @@ export async function syncNovelCatalog(
     sourceNovelUrl: string;
     catalogCache: CatalogCache;
     title?: string;
+    author?: string;
   } = {
     sourceNovelUrl: index.bookUrl,
     catalogCache: cache,
@@ -145,9 +146,13 @@ export async function syncNovelCatalog(
   if (
     index.novelTitle &&
     index.novelTitle !== novel.title &&
-    /^第/.test(novel.title)
+    (/^第/.test(novel.title) || novel.title === "Truyện chưa đặt tên")
   ) {
     updates.title = index.novelTitle;
+  }
+
+  if (index.author && !novel.author) {
+    updates.author = index.author;
   }
 
   await db.novel.update({

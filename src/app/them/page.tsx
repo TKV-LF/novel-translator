@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { GENRES } from "@/lib/types";
 import { loadPrefs } from "@/lib/prefs";
 import { urlInputHint } from "@/lib/scrape-hints";
+import { isWikicvTocUrl, isWikicvUrl } from "@/lib/sites/types";
 
 type NovelOption = { id: string; title: string; genre: string };
 
@@ -50,6 +51,29 @@ export default function ThemPage() {
       setLoading(true);
       setError("");
       try {
+        if (mode === "url" && isWikicvTocUrl(url)) {
+          const res = await fetch("/api/novels/open-book", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bookUrl: url,
+              novelId: novelId || undefined,
+              title: newNovelTitle || undefined,
+              genre,
+            }),
+          });
+          const data = (await res.json()) as {
+            novelId?: string;
+            message?: string;
+          };
+          if (!res.ok || !data.novelId) {
+            setError(data.message || "Không tải được mục lục");
+            return;
+          }
+          router.push(`/muc-luc/${data.novelId}`);
+          return;
+        }
+
         const endpoint =
           mode === "url" ? "/api/chapters/open-url" : "/api/chapters/paste";
         const body =
@@ -59,7 +83,7 @@ export default function ThemPage() {
                 novelId: novelId || undefined,
                 title: newNovelTitle || undefined,
                 genre,
-                autoTranslate,
+                autoTranslate: isWikicvUrl(url) ? false : autoTranslate,
               }
             : {
                 novelId: novelId || undefined,
@@ -184,7 +208,7 @@ export default function ThemPage() {
         {mode === "url" ? (
           <div>
             <label className="label" htmlFor="url">
-              URL chương
+              URL chương hoặc mục lục Wikicv
             </label>
             <input
               id="url"
@@ -198,7 +222,8 @@ export default function ThemPage() {
             <p className="mt-1 text-xs text-slate-500">
               URL ổn định: <strong className="text-slate-400">69shuba.com</strong>,{" "}
               <strong className="text-slate-400">uuread.tw</strong>,{" "}
-              <strong className="text-slate-400">uukanshu.cc</strong>
+              <strong className="text-slate-400">uukanshu.cc</strong>,{" "}
+              <strong className="text-slate-400">wikicv.org</strong>
             </p>
             <p className="mt-0.5 text-xs text-amber-700/90">
               69shuba.tw / twkan.com: không dán URL — mở chương trên site rồi
@@ -239,14 +264,16 @@ export default function ThemPage() {
           </>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-slate-300">
-          <input
-            type="checkbox"
-            checked={autoTranslate}
-            onChange={(e) => setAutoTranslate(e.target.checked)}
-          />
-          Tự động dịch sau khi lấy nội dung
-        </label>
+        {mode === "url" && isWikicvUrl(url) ? null : (
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={autoTranslate}
+              onChange={(e) => setAutoTranslate(e.target.checked)}
+            />
+            Tự động dịch sau khi lấy nội dung
+          </label>
+        )}
 
         {error ? (
           <p className="text-sm text-red-400" role="alert">

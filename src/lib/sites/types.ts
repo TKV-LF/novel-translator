@@ -5,6 +5,7 @@ export type ParsedChapter = {
   prevUrl?: string | null;
   novelTitle?: string | null;
   author?: string | null;
+  bookUrl?: string | null;
 };
 
 export type TocEntry = {
@@ -15,6 +16,7 @@ export type TocEntry = {
 
 export type ParsedBookIndex = {
   novelTitle: string | null;
+  author?: string | null;
   bookUrl: string;
   chapters: TocEntry[];
 };
@@ -40,6 +42,7 @@ export interface SiteAdapter {
   matches(hostname: string): boolean;
   parseChapter(html: string, url: string): ParsedChapter;
   parseBookIndex?(html: string, url: string): ParsedBookIndex | null;
+  pretranslated?: boolean;
 }
 
 export function absolutize(baseUrl: string, href?: string | null): string | null {
@@ -89,10 +92,46 @@ export function inferBookUrl(url: string): string | null {
       const m = u.pathname.match(/\/(\d+)\/\d+/);
       if (m) return `${u.origin}/book/${m[1]}/`;
     }
+    if (isWikicvHost(host)) {
+      return isWikicvTocPath(u.pathname)
+        ? `${u.origin}${u.pathname.replace(/\/$/, "")}`
+        : null;
+    }
   } catch {
     return null;
   }
   return null;
+}
+
+export function isWikicvHost(hostname: string): boolean {
+  return /wikicv\./i.test(hostname);
+}
+
+export function isWikicvTocPath(pathname: string): boolean {
+  const parts = pathname.replace(/\/$/, "").split("/").filter(Boolean);
+  return parts[0] === "truyen" && parts.length === 2;
+}
+
+export function isWikicvChapterPath(pathname: string): boolean {
+  const parts = pathname.replace(/\/$/, "").split("/").filter(Boolean);
+  return parts[0] === "truyen" && parts.length >= 3;
+}
+
+export function isWikicvTocUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return isWikicvHost(u.hostname) && isWikicvTocPath(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
+export function isWikicvUrl(url: string): boolean {
+  try {
+    return isWikicvHost(new URL(url).hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function normalizeBookUrl(url: string): string {

@@ -6,6 +6,13 @@ import {
   type ParsedBookIndex,
   type SiteAdapter,
 } from "./sites/types";
+import {
+  extractWikicvIndexMeta,
+  parseWikicvVolumeList,
+  signBookIndex,
+  TOC_PAGE_SIZE,
+  wikicvAdapter,
+} from "./sites/wikicv";
 
 const JINA_BASE = "https://r.jina.ai/";
 
@@ -36,6 +43,9 @@ function chapterLinkPattern(url: string): RegExp {
     }
     if (host.includes("uuread")) {
       return /\/ch\/\d+/;
+    }
+    if (host.includes("wikicv")) {
+      return /\/truyen\/[^/]+\/.+/;
     }
   } catch {
     // fall through
@@ -153,10 +163,127 @@ export async function fetchAndParseBookIndex(
     throw new Error("UNSUPPORTED_SITE");
   }
 
+  if (adapter.id === "wikicv") {
+    return fetchWikicvBookIndex(url);
+  }
+
   const direct = await fetchDirectBookIndex(url, adapter);
   if (direct && direct.chapters.length > 0) {
     return direct;
   }
 
   return fetchBookIndexViaJina(url, adapter);
+}
+
+async function fetchBookPageHtml(url: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": UA,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+        Referer: new URL(url).origin + "/",
+      },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchWikicvIndexPage(opts: {
+  origin: string;
+  bookId: string;
+  signKey: string;
+  start: number;
+  size: number;
+}): Promise<string | null> {
+  const sign = signBookIndex(opts.signKey, opts.start, opts.size);
+  const qs = new URLSearchParams({
+    bookId: opts.bookId,
+    start: String(opts.start),
+    size: String(opts.size),
+    signKey: opts.signKey,
+    sign,
+  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(`${opts.origin}/book/index?${qs}`, {
+      headers: {
+        "User-Agent": UA,
+        Accept: "text/html,*/*",
+        "X-Requested-With": "XMLHttpRequest",
+        Referer: opts.origin + "/",
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchWikicvBookIndex(url: string): Promise<ParsedBookIndex> {
+  const html = await fetchBookPageHtml(url);
+  const fromHtml = html ? wikicvAdapter.parseBookIndex?.(html, url) : null;
+  const meta = html ? extractWikicvIndexMeta(html) : { bookId: null, signKey: null };
+  const origin = new URL(url).origin;
+
+  const chapters = fromHtml?.chapters?.length ? [...fromHtml.chapters] : [];
+  const seen = new Set(chapters.map((c) => c.sourceUrl));
+
+  if (meta.bookId && meta.signKey) {
+    for (let start = 0; start < 20000; start += TOC_PAGE_SIZE) {
+      const fragment = await fetchWikicvIndexPage({
+        origin,
+        bookId: meta.bookId,
+        signKey: meta.signKey,
+        start,
+        size: TOC_PAGE_SIZE,
+      });
+      if (!fragment) break;
+      const page = parseWikicvVolumeList(fragment, url);
+      for (const entry of page) {
+        if (seen.has(entry.sourceUrl)) continue;
+        seen.add(entry.sourceUrl);
+        chapters.push(entry);
+      }
+      if (page.length < TOC_PAGE_SIZE) break;
+    }
+  }
+
+  if (!chapters.length) {
+    try {
+      return await fetchBookIndexViaJina(url, wikicvAdapter);
+    } catch {
+      throw new Error("EMPTY_CATALOG");
+    }
+  }
+
+  const novelTitle =
+    fromHtml?.novelTitle ||
+    (html
+      ? novelTitleFromPageTitle(
+          html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? ""
+        )
+      : null);
+
+  return {
+    novelTitle,
+    author: fromHtml?.author ?? null,
+    bookUrl: url.replace(/\/$/, ""),
+    chapters,
+  };
 }

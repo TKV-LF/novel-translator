@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { loadPrefs } from "@/lib/prefs";
 import { setPendingNovel } from "@/lib/pending-novel";
 import { isBrowserAssistedUrl } from "@/lib/scrape-hints";
+import { isWikicvHost } from "@/lib/sites/types";
 import { GENRES } from "@/lib/types";
 
 type ChapterPayload = {
@@ -16,7 +17,7 @@ type ChapterPayload = {
   nextSourceUrl: string | null;
   prevSourceUrl: string | null;
   sourceUrl: string | null;
-  novel: { id: string; title: string; genre: string };
+  novel: { id: string; title: string; genre: string; sourceHost?: string | null };
 };
 
 export default function DocPage() {
@@ -153,7 +154,9 @@ export default function DocPage() {
           body: JSON.stringify({
             chapterId: chapter.id,
             direction,
-            autoTranslate,
+            autoTranslate: isWikicvHost(chapter.novel.sourceHost || "")
+              ? false
+              : autoTranslate,
           }),
         });
         const data = (await res.json()) as {
@@ -271,17 +274,21 @@ export default function DocPage() {
         >
           Chương sau →
         </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={busy}
-          onClick={onRetranslate}
-        >
-          Dịch lại
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={toggleChinese}>
-          {showChinese ? "Ẩn Trung" : "Hiện Trung"}
-        </button>
+        {isWikicvHost(chapter.novel.sourceHost || "") ? null : (
+          <>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={onRetranslate}
+            >
+              Dịch lại
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={toggleChinese}>
+              {showChinese ? "Ẩn Trung" : "Hiện Trung"}
+            </button>
+          </>
+        )}
       </div>
 
       {error ? (
@@ -305,7 +312,7 @@ export default function DocPage() {
         )}
       </article>
 
-      {showChinese ? (
+      {showChinese && !isWikicvHost(chapter.novel.sourceHost || "") ? (
         <aside className="panel mt-8 p-4">
           <h2 className="mb-2 text-sm font-medium text-slate-400">
             Bản gốc Trung

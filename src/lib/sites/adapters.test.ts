@@ -8,6 +8,12 @@ import {
   uureadAdapter,
 } from "./adapters";
 import { resolveAdapter } from "./index";
+import { inferBookUrl, isWikicvTocUrl } from "./types";
+import {
+  extractWikicvIndexMeta,
+  signBookIndex,
+  wikicvAdapter,
+} from "./wikicv";
 
 const fixture = (name: string) =>
   readFileSync(join(__dirname, "fixtures", name), "utf8");
@@ -23,6 +29,12 @@ describe("site adapters", () => {
     expect(resolveAdapter("https://twkan.com/novel/1.html")?.id).toBe("twkan");
     expect(resolveAdapter("https://www.uuread.tw/ch/1.html")?.id).toBe(
       "uuread"
+    );
+    expect(resolveAdapter("https://wikicv.org/truyen/foo-abc")?.id).toBe(
+      "wikicv"
+    );
+    expect(resolveAdapter("https://wikicv.net/truyen/foo/chuong-1")?.id).toBe(
+      "wikicv"
     );
     expect(resolveAdapter("https://www.qidian.com/chapter/1")).toBeNull();
   });
@@ -76,5 +88,59 @@ describe("site adapters", () => {
       "https://www.69shuba.com/txt/84165/39146650"
     );
     expect(parsed?.chapters[0]?.chapterNumber).toBe(1);
+  });
+
+  it("parses wikicv chapter fixture", () => {
+    const url =
+      "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-1-cuoi-cung-nhiem-vu-WSZDW4DbSVx7Ev3ag";
+    const parsed = wikicvAdapter.parseChapter(fixture("wikicv-chapter.html"), url);
+    expect(parsed.title).toContain("Chương 1");
+    expect(parsed.novelTitle).toContain("Trung Quốc thợ săn");
+    expect(parsed.author).toBe("Bộ Thương");
+    expect(parsed.content).toContain("Cuối mùa thu");
+    expect(parsed.content).not.toContain("Tác giả:");
+    expect(parsed.nextUrl).toContain("/chuong-2-");
+    expect(parsed.prevUrl).toBeNull();
+    expect(parsed.bookUrl).toBe(
+      "https://wikicv.org/truyen/trung-quoc-tho-san-WSZACO8h7G0re1A9"
+    );
+    expect(wikicvAdapter.pretranslated).toBe(true);
+  });
+
+  it("treats empty wikicv bookContent as empty chapter", () => {
+    const url =
+      "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-vip";
+    const parsed = wikicvAdapter.parseChapter(
+      fixture("wikicv-chapter-empty.html"),
+      url
+    );
+    expect(parsed.content.length).toBeLessThan(20);
+  });
+
+  it("parses wikicv book index fixture", () => {
+    const url = "https://wikicv.org/truyen/trung-quoc-tho-san-WSZACO8h7G0re1A9";
+    const parsed = wikicvAdapter.parseBookIndex?.(
+      fixture("wikicv-book.html"),
+      url
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed?.novelTitle).toContain("Trung Quốc thợ săn");
+    expect(parsed?.chapters.length).toBe(3);
+    expect(parsed?.chapters[0]?.sourceUrl).toContain("/chuong-1-");
+    expect(parsed?.chapters[0]?.chapterNumber).toBe(1);
+    const meta = extractWikicvIndexMeta(fixture("wikicv-book.html"));
+    expect(meta.bookId).toBe("59264008ef21ec6d2b7b503d");
+    expect(meta.signKey).toHaveLength(96);
+  });
+
+  it("infers wikicv toc url and signs book index", () => {
+    const toc = "https://wikicv.org/truyen/trung-quoc-tho-san-WSZACO8h7G0re1A9";
+    const chapter =
+      "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-1-cuoi-cung-nhiem-vu-x";
+    expect(isWikicvTocUrl(toc)).toBe(true);
+    expect(isWikicvTocUrl(chapter)).toBe(false);
+    expect(inferBookUrl(toc)).toBe(toc);
+    expect(inferBookUrl(chapter)).toBeNull();
+    expect(signBookIndex("abc", 0, 501)).toMatch(/^[a-f0-9]{64}$/);
   });
 });
