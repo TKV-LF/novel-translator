@@ -53,6 +53,16 @@ export async function fetchChapterViaJina(
     throw new Error("SCRAPE_FAILED");
   }
 
+  if (adapter.pretranslated) {
+    if (!htmlRes.ok) throw new Error("SCRAPE_BLOCKED");
+    const html = await htmlRes.text();
+    const parsed = adapter.parseChapter(html, url);
+    if (!parsed.content || parsed.content.length < 20) {
+      throw new Error("EMPTY_CONTENT");
+    }
+    return parsed;
+  }
+
   const payload = (await jsonRes.json()) as JinaJson;
   const content = payload.data?.content?.trim() ?? "";
   const blocked =

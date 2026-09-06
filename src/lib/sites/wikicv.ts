@@ -44,6 +44,73 @@ function stripPreamble(
   return body.replace(/^Tác giả:\s*[^\n]+\n*/i, "").trim();
 }
 
+const WIKICV_VIDEO_UI = [
+  /^Video Player is loading\.?$/i,
+  /^Current Time\s/i,
+  /^Duration\s/i,
+  /^Loaded:\s/i,
+  /^Remaining Time\s/i,
+  /^Stream Type\s/i,
+  /^Seek to live/i,
+  /^Picture-in-Picture/i,
+  /^Fullscreen/i,
+  /^Playback Rate/i,
+  /^Live$/i,
+  /^Video \d+$/i,
+];
+
+export function cleanWikicvChapterText(text: string): string {
+  let body = text.replace(/\[([^\]\n]+)\]\([^)\n]+\)/g, "$1");
+  body = body.replace(/\(\s*blob:[^)]+\)/g, "");
+
+  for (let i = 0; i < 8; i++) {
+    const next = body.replace(/([\p{L}])·([\p{L}])/gu, "$1$2");
+    if (next === body) break;
+    body = next;
+  }
+
+  body = body
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return true;
+      if (WIKICV_VIDEO_UI.some((pattern) => pattern.test(trimmed))) return false;
+      if (/^Học ngoại ngữ\s*$/i.test(trimmed)) return false;
+      if (/blob:https?:\/\//i.test(trimmed)) return false;
+      return true;
+    })
+    .join("\n");
+
+  return cleanText(body).replace(/\s+c$/u, "");
+}
+
+function chapterContentRoot($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Element> {
+  const body = $("#bookContentBody").first();
+  if (body.length) return body;
+
+  const content = $("#bookContent").first();
+  content
+    .find(
+      ".ankhinho, .ankhito, .btn-bot, .content-body-wrapper, p.book-title, .center"
+    )
+    .remove();
+  return content;
+}
+
+function sanitizeChapterNode(
+  $: cheerio.CheerioAPI,
+  node: cheerio.Cheerio<cheerio.Element>
+) {
+  node
+    .find(
+      "script, style, iframe, video, audio, source, noscript, .ads, .ad, [class*='video'], [class*='player'], [id*='player']"
+    )
+    .remove();
+  node.find("a").each((_, el) => {
+    $(el).replaceWith($(el).text());
+  });
+}
+
 function parseChapterLinks(
   $: cheerio.CheerioAPI,
   baseUrl: string
@@ -122,14 +189,17 @@ export const wikicvAdapter: SiteAdapter = {
       cleanText($("h3, .chapter-title").first().text()) ||
       "Chương";
 
-    const node = $("#bookContent").first();
-    node.find("script, style, .ads, .ad, iframe").remove();
-    node.find("br").replaceWith("\n");
-    node.find("p").after("\n\n");
-    const raw = cleanText(node.text());
+    const headerText = cleanText($("#bookContent p.book-title").text());
+    const root = chapterContentRoot($);
+    sanitizeChapterNode($, root);
+    root.find("br").replaceWith("\n");
+    root.find("p").after("\n\n");
+    const raw = cleanWikicvChapterText(cleanText(root.text()));
     const content = stripPreamble(raw, novelTitle, title);
 
-    const authorMatch = raw.match(/Tác giả:\s*([^\n]+)/i);
+    const authorMatch =
+      headerText.match(/Tác giả:\s*([^\n]+)/i) ||
+      raw.match(/Tác giả:\s*([^\n]+)/i);
     const bookUrl = findNavUrl($, url, [/^mục lục$/i]);
 
     return {

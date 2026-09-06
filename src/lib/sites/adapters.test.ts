@@ -10,6 +10,7 @@ import {
 import { resolveAdapter } from "./index";
 import { inferBookUrl, isWikicvTocUrl } from "./types";
 import {
+  cleanWikicvChapterText,
   extractWikicvIndexMeta,
   signBookIndex,
   wikicvAdapter,
@@ -105,6 +106,38 @@ describe("site adapters", () => {
       "https://wikicv.org/truyen/trung-quoc-tho-san-WSZACO8h7G0re1A9"
     );
     expect(wikicvAdapter.pretranslated).toBe(true);
+  });
+
+  it("parses wikicv bookContentBody without nav or obfuscation dots", () => {
+    const url = "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-109-test";
+    const parsed = wikicvAdapter.parseChapter(
+      fixture("wikicv-chapter-body.html"),
+      url
+    );
+    expect(parsed.content).toContain("vũ khí");
+    expect(parsed.content).not.toContain("v·ũ");
+    expect(parsed.content).not.toContain("Chương trước");
+    expect(parsed.content).not.toContain("Mục lục");
+    expect(parsed.author).toBe("Bộ Thương");
+  });
+
+  it("strips jina-style markdown and video junk from wikicv text", () => {
+    const cleaned = cleanWikicvChapterText(
+      [
+        "Lý Mục tìm v·ũ kh·í.",
+        "lị [sinh](https://wikicv.org/truyen/foo#) trưởng cây cối.",
+        "[Video 5](blob:https://wikicv.org/deadbeef)",
+        "Video Player is loading.",
+        "Current Time 0:00",
+        "Học ngoại ngữ",
+        "Tiếp tục câu chuyện.",
+      ].join("\n")
+    );
+    expect(cleaned).toContain("vũ khí");
+    expect(cleaned).toContain("lị sinh trưởng cây cối");
+    expect(cleaned).not.toContain("Video Player");
+    expect(cleaned).not.toContain("Học ngoại ngữ");
+    expect(cleaned).not.toMatch(/\[.*\]\(/);
   });
 
   it("treats empty wikicv bookContent as empty chapter", () => {
