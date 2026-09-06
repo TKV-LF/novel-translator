@@ -16,6 +16,7 @@ export const openUrlSchema = z.object({
   genre: z.string().default("kiem_hiep"),
   autoTranslate: z.boolean().default(true),
   updateProgress: z.boolean().default(true),
+  force: z.boolean().default(false),
 });
 
 export const openBookSchema = z.object({

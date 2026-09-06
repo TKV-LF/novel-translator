@@ -16,6 +16,16 @@ export function chapterHasSavedText(ch: {
   return Boolean(ch.translatedText?.trim() || ch.originalText?.trim());
 }
 
+export function shouldSkipChapterFetch(
+  existing: {
+    originalText?: string | null;
+    translatedText?: string | null;
+  } | null,
+  force?: boolean
+): boolean {
+  return Boolean(existing && chapterHasSavedText(existing) && !force);
+}
+
 export async function updateReadingProgress(
   userId: string,
   novelId: string,
@@ -145,16 +155,17 @@ export async function openUrlChapter(opts: {
   genre: string;
   autoTranslate: boolean;
   updateProgress?: boolean;
+  force?: boolean;
   userId: string;
 }) {
   const existing = await findExistingChapter(opts.url, opts.novelId);
-  if (existing && chapterHasSavedText(existing)) {
+  if (shouldSkipChapterFetch(existing, opts.force)) {
     if (opts.updateProgress ?? true) {
-      await updateReadingProgress(opts.userId, existing.novelId, existing.id);
+      await updateReadingProgress(opts.userId, existing!.novelId, existing!.id);
     }
     return {
-      novel: existing.novel,
-      chapter: existing,
+      novel: existing!.novel,
+      chapter: existing!,
     };
   }
 

@@ -227,6 +227,16 @@ function MucLucInner() {
     });
   }, [imported, visibleChapters]);
 
+  const selectFetched = useCallback(() => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const c of visibleChapters) {
+        if (c.hasContent || c.hasTranslation) next.add(chapterKey(c));
+      }
+      return next;
+    });
+  }, [visibleChapters]);
+
   const selectAll = useCallback(() => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -238,6 +248,15 @@ function MucLucInner() {
   const clearSelection = useCallback(() => {
     setSelected(new Set());
   }, []);
+
+  const selectedFetchedCount = useMemo(
+    () =>
+      chapters.filter(
+        (c) =>
+          selected.has(chapterKey(c)) && (c.hasContent || c.hasTranslation)
+      ).length,
+    [chapters, selected]
+  );
 
   const onProcessSelected = useCallback(async () => {
     const picked = chapters.filter((c) => selected.has(chapterKey(c)));
@@ -253,11 +272,18 @@ function MucLucInner() {
         const label = chapter.chapterNumber
           ? `Chương ${chapter.chapterNumber}`
           : chapter.title;
+        const alreadySaved = chapter.hasContent || chapter.hasTranslation;
         setProgress(
-          `${imported ? "Đang tải" : "Đang xử lý"} ${i + 1}/${picked.length}: ${label}…`
+          `${
+            imported
+              ? alreadySaved
+                ? "Đang tải lại"
+                : "Đang tải"
+              : "Đang xử lý"
+          } ${i + 1}/${picked.length}: ${label}…`
         );
 
-        if (!chapter.hasContent && chapter.sourceUrl) {
+        if (chapter.sourceUrl && (imported || !chapter.hasContent)) {
           const res = await fetch("/api/chapters/open-url", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -267,6 +293,7 @@ function MucLucInner() {
               genre,
               autoTranslate: !imported,
               updateProgress: false,
+              force: imported && alreadySaved,
             }),
           });
           const data = (await res.json()) as {
@@ -421,7 +448,16 @@ function MucLucInner() {
         >
           {imported ? "Chọn chưa tải (trang)" : "Chọn chưa lấy (trang)"}
         </button>
-        {imported ? null : (
+        {imported ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={busy || syncing || !chapters.length}
+            onClick={selectFetched}
+          >
+            Chọn đã tải (trang)
+          </button>
+        ) : (
           <button
             type="button"
             className="btn btn-ghost"
@@ -453,7 +489,15 @@ function MucLucInner() {
           disabled={busy || syncing || selected.size === 0}
           onClick={onProcessSelected}
         >
-          {imported ? "Tải về" : "Lấy & dịch"} {selected.size} chương
+          {imported
+            ? selectedFetchedCount > 0 &&
+              selectedFetchedCount === selected.size
+              ? "Tải lại"
+              : selectedFetchedCount > 0
+                ? "Tải về / Tải lại"
+                : "Tải về"
+            : "Lấy & dịch"}{" "}
+          {selected.size} chương
         </button>
       </div>
 
