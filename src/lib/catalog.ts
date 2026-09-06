@@ -12,9 +12,38 @@ type DbChapter = {
   title: string;
   chapterNumber: number | null;
   sourceUrl: string | null;
-  originalText: string;
-  translatedText: string | null;
+  originalText?: string;
+  translatedText?: string | null;
+  hasContent?: boolean;
+  hasTranslation?: boolean;
 };
+
+function dbChapterHasContent(chapter: DbChapter | undefined): boolean {
+  if (!chapter) return false;
+  if (chapter.hasContent !== undefined) return chapter.hasContent;
+  return Boolean(chapter.originalText?.trim());
+}
+
+function dbChapterHasTranslation(chapter: DbChapter | undefined): boolean {
+  if (!chapter) return false;
+  if (chapter.hasTranslation !== undefined) return chapter.hasTranslation;
+  return Boolean(chapter.translatedText?.trim());
+}
+
+export async function fetchDbChapterTocMeta(novelId: string): Promise<DbChapter[]> {
+  return db.$queryRaw<DbChapter[]>`
+    SELECT
+      id,
+      title,
+      "chapterNumber",
+      "sourceUrl",
+      (length(trim("originalText")) > 0) AS "hasContent",
+      ("translatedText" IS NOT NULL AND length(trim("translatedText")) > 0) AS "hasTranslation"
+    FROM "Chapter"
+    WHERE "novelId" = ${novelId}
+    ORDER BY "chapterNumber" ASC NULLS LAST, "createdAt" ASC
+  `;
+}
 
 export function parseCatalogCache(raw: unknown): CatalogCache | null {
   if (!raw || typeof raw !== "object") return null;
@@ -64,8 +93,8 @@ export function mergeCatalogWithDb(
         title: db?.title ?? entry.title,
         sourceUrl: entry.sourceUrl,
         chapterNumber: db?.chapterNumber ?? entry.chapterNumber,
-        hasContent: Boolean(db?.originalText?.trim()),
-        hasTranslation: Boolean(db?.translatedText?.trim()),
+        hasContent: dbChapterHasContent(db),
+        hasTranslation: dbChapterHasTranslation(db),
       };
     });
   }
@@ -75,8 +104,8 @@ export function mergeCatalogWithDb(
     title: c.title,
     sourceUrl: c.sourceUrl,
     chapterNumber: c.chapterNumber,
-    hasContent: Boolean(c.originalText?.trim()),
-    hasTranslation: Boolean(c.translatedText?.trim()),
+    hasContent: dbChapterHasContent(c),
+    hasTranslation: dbChapterHasTranslation(c),
   }));
 }
 

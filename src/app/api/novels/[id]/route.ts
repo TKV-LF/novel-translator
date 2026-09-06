@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
-import { mergeCatalogWithDb, parseCatalogCache } from "@/lib/catalog";
+import { mergeCatalogWithDb, parseCatalogCache, fetchDbChapterTocMeta } from "@/lib/catalog";
 import { inferBookUrl } from "@/lib/sites/types";
 
 export async function GET(
@@ -14,61 +14,60 @@ export async function GET(
   }
 
   const { id } = await context.params;
-  const novel = await db.novel.findUnique({
-    where: { id },
-    include: {
-      chapters: {
-        orderBy: [{ chapterNumber: "asc" }, { createdAt: "asc" }],
-        select: {
-          id: true,
-          title: true,
-          chapterNumber: true,
-          sourceUrl: true,
-          originalText: true,
-          translatedText: true,
-          createdAt: true,
-        },
-      },
-      progress: {
-        where: { userId: user.id },
-        take: 1,
-      },
-      _count: { select: { glossary: true } },
-    },
-  });
 
-  if (!novel) {
+  try {
+    const novel = await db.novel.findUnique({
+      where: { id },
+      include: {
+        progress: {
+          where: { userId: user.id },
+          take: 1,
+        },
+        _count: { select: { glossary: true } },
+      },
+    });
+
+    if (!novel) {
+      return NextResponse.json(
+        { message: "Không tìm thấy truyện" },
+        { status: 404 }
+      );
+    }
+
+    const catalog = parseCatalogCache(novel.catalogCache);
+    const inferredBookUrl =
+      novel.sourceNovelUrl ||
+      (catalog?.chapters[0]?.sourceUrl
+        ? inferBookUrl(catalog.chapters[0].sourceUrl)
+        : null);
+
+    const dbChapters = await fetchDbChapterTocMeta(id);
+    const mergedChapters = mergeCatalogWithDb(catalog, dbChapters);
+
+    return NextResponse.json({
+      novel: {
+        id: novel.id,
+        title: novel.title,
+        author: novel.author,
+        genre: novel.genre,
+        sourceHost: novel.sourceHost,
+        sourceNovelUrl: novel.sourceNovelUrl,
+        createdAt: novel.createdAt,
+        progress: novel.progress,
+        glossaryCount: novel._count.glossary,
+        catalogSyncedAt: catalog?.syncedAt ?? null,
+        catalogChapterCount: catalog?.chapters.length ?? 0,
+        inferredBookUrl,
+        chapters: mergedChapters,
+      },
+    });
+  } catch (error) {
+    console.error("NOVEL_GET_ERROR", error);
     return NextResponse.json(
-      { message: "Không tìm thấy truyện" },
-      { status: 404 }
+      { message: "Không tải được mục lục" },
+      { status: 500 }
     );
   }
-
-  const catalog = parseCatalogCache(novel.catalogCache);
-  const inferredBookUrl =
-    novel.sourceNovelUrl ||
-    (novel.chapters[0]?.sourceUrl
-      ? inferBookUrl(novel.chapters[0].sourceUrl)
-      : null);
-  const mergedChapters = mergeCatalogWithDb(catalog, novel.chapters);
-
-  return NextResponse.json({
-    novel: {
-      id: novel.id,
-      title: novel.title,
-      author: novel.author,
-      genre: novel.genre,
-      sourceHost: novel.sourceHost,
-      sourceNovelUrl: novel.sourceNovelUrl,
-      createdAt: novel.createdAt,
-      progress: novel.progress,
-      glossaryCount: novel._count.glossary,
-      catalogSyncedAt: catalog?.syncedAt ?? null,
-      catalogChapterCount: catalog?.chapters.length ?? 0,
-      inferredBookUrl,
-      chapters: mergedChapters,
-    },
-  });
 }
 
 export async function PATCH(

@@ -54,4 +54,32 @@ describe("catalog", () => {
     expect(merged[1]?.hasContent).toBe(false);
     expect(merged[1]?.id).toBeNull();
   });
+
+  it("merges catalog with db chapter flags without loading text", () => {
+    const merged = mergeCatalogWithDb(
+      {
+        bookUrl: "https://wikicv.org/truyen/example",
+        syncedAt: "2026-09-06T12:00:00.000Z",
+        chapters: [
+          {
+            title: "Chương 1",
+            sourceUrl: "https://wikicv.org/truyen/example/1",
+            chapterNumber: 1,
+          },
+        ],
+      },
+      [
+        {
+          id: "ch-1",
+          title: "Chương 1",
+          chapterNumber: 1,
+          sourceUrl: "https://wikicv.org/truyen/example/1",
+          hasContent: true,
+          hasTranslation: true,
+        },
+      ]
+    );
+    expect(merged[0]?.hasTranslation).toBe(true);
+    expect(merged[0]?.hasContent).toBe(true);
+  });
 });
