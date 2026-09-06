@@ -84,7 +84,7 @@ export function cleanWikicvChapterText(text: string): string {
   return cleanText(body).replace(/\s+c$/u, "");
 }
 
-function chapterContentRoot($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Element> {
+function chapterContentRoot($: cheerio.CheerioAPI) {
   const body = $("#bookContentBody").first();
   if (body.length) return body;
 
@@ -99,7 +99,7 @@ function chapterContentRoot($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Elem
 
 function sanitizeChapterNode(
   $: cheerio.CheerioAPI,
-  node: cheerio.Cheerio<cheerio.Element>
+  node: ReturnType<cheerio.CheerioAPI>
 ) {
   node
     .find(
