@@ -26,6 +26,12 @@ describe("scrape-hints", () => {
         "第1章 测试"
       )
     ).toBe(false);
+    expect(
+      isJunkScrapeContent(
+        "Trương Hải Siêu báo danh cùng ngày, Lý Mục đi vào đệ tam hạm đội tư lệnh viên văn phòng.",
+        "Chương 1404 Lý quân trường"
+      )
+    ).toBe(false);
   });
 
   it("returns url hint for blocked hosts", () => {

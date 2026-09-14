@@ -28,10 +28,18 @@ export function getKnownHostLimitation(url: string): ScrapeErrorCode | null {
 
 export function isJunkScrapeContent(content: string, title: string): boolean {
   const t = title.toLowerCase();
-  if (/404|403 forbidden|just a moment|captcha|security verification/i.test(t)) {
+  if (
+    /(?<![\d])404(?![\d])|403 forbidden|just a moment|captcha|security verification/i.test(
+      t
+    )
+  ) {
     return true;
   }
-  if (/404|403 Forbidden|Please complete human verification/i.test(content)) {
+  if (
+    /(?<![\d])404(?![\d])|403 Forbidden|Please complete human verification/i.test(
+      content
+    )
+  ) {
     return true;
   }
   const linkCount = (content.match(/\]\(http/g) || []).length;

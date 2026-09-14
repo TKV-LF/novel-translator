@@ -84,17 +84,85 @@ export function cleanWikicvChapterText(text: string): string {
   return cleanText(body).replace(/\s+c$/u, "");
 }
 
+function nodeTextLength(node: ReturnType<cheerio.CheerioAPI>): number {
+  return cleanText(node.text()).length;
+}
+
 function chapterContentRoot($: cheerio.CheerioAPI) {
   const body = $("#bookContentBody").first();
-  if (body.length) return body;
+  if (body.length && nodeTextLength(body) >= 20) return body;
 
   const content = $("#bookContent").first();
-  content
-    .find(
-      ".ankhinho, .ankhito, .btn-bot, .content-body-wrapper, p.book-title, .center"
-    )
-    .remove();
-  return content;
+  content.find(".ankhinho, .ankhito, .btn-bot, p.book-title, .center").remove();
+  if (body.length && nodeTextLength(body) < 20) {
+    body.remove();
+  } else if (!body.length) {
+    content.find(".content-body-wrapper").remove();
+  }
+  return content.length ? content : body;
+}
+
+function isJinaReaderDocument(text: string): boolean {
+  return /^(Title|URL Source|Markdown Content):/m.test(text);
+}
+
+function looksLikeHtmlDocument(text: string): boolean {
+  return /<(?:html|head|body|div|article|section)\b/i.test(text);
+}
+
+export function shouldParseWikicvAsPlainText(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (isJinaReaderDocument(trimmed)) return true;
+  return !looksLikeHtmlDocument(trimmed);
+}
+
+function extractJinaReaderFields(text: string): {
+  title: string | null;
+  body: string;
+} {
+  const title = text.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? null;
+  const marker = /^Markdown Content:\s*\n?/m;
+  const match = marker.exec(text);
+  if (match && match.index != null) {
+    return { title, body: text.slice(match.index + match[0].length).trim() };
+  }
+  return { title, body: text.trim() };
+}
+
+export function titlesFromWikicvDocumentTitle(titleFromPage: string): {
+  novelTitle: string | null;
+  chapterTitle: string;
+} {
+  const cleaned = cleanText(titleFromPage);
+  if (cleaned.includes(" - ")) {
+    const parts = cleaned.split(" - ");
+    return {
+      novelTitle: cleanText(parts[0] || "") || null,
+      chapterTitle: cleanText(parts.slice(1).join(" - ")) || "Chương",
+    };
+  }
+  return { novelTitle: null, chapterTitle: cleaned || "Chương" };
+}
+
+export function parseWikicvPlainChapter(
+  text: string,
+  _url: string
+): ParsedChapter {
+  const extracted = extractJinaReaderFields(text);
+  const titles = titlesFromWikicvDocumentTitle(extracted.title || "");
+  const raw = cleanWikicvChapterText(extracted.body);
+  const content = stripPreamble(raw, titles.novelTitle, titles.chapterTitle);
+  const authorMatch = raw.match(/Tác giả:\s*([^\n]+)/i);
+  return {
+    title: titles.chapterTitle || "Chương",
+    content,
+    nextUrl: null,
+    prevUrl: null,
+    novelTitle: titles.novelTitle,
+    author: authorMatch?.[1]?.trim() || null,
+    bookUrl: null,
+  };
 }
 
 function sanitizeChapterNode(
@@ -176,16 +244,17 @@ export const wikicvAdapter: SiteAdapter = {
     return isWikicvHost(hostname);
   },
   parseChapter(html, url) {
+    if (shouldParseWikicvAsPlainText(html)) {
+      return parseWikicvPlainChapter(html, url);
+    }
+
     const $ = cheerio.load(html);
-    const novelTitle =
-      cleanText($("h2").first().text()) ||
-      cleanText($("title").text().split(" - ")[0] || "") ||
-      null;
     const titleFromPage = cleanText($("title").text());
+    const fromDocTitle = titlesFromWikicvDocumentTitle(titleFromPage);
+    const novelTitle =
+      cleanText($("h2").first().text()) || fromDocTitle.novelTitle;
     const title =
-      (titleFromPage.includes(" - ")
-        ? cleanText(titleFromPage.split(" - ").slice(1).join(" - "))
-        : "") ||
+      (titleFromPage.includes(" - ") ? fromDocTitle.chapterTitle : "") ||
       cleanText($("h3, .chapter-title").first().text()) ||
       "Chương";
 
@@ -193,13 +262,23 @@ export const wikicvAdapter: SiteAdapter = {
     const root = chapterContentRoot($);
     sanitizeChapterNode($, root);
     root.find("br").replaceWith("\n");
+    const paragraphs = root
+      .find("p")
+      .toArray()
+      .map((el) => cleanText($(el).text()))
+      .filter(Boolean);
+    const fromParagraphs = cleanWikicvChapterText(paragraphs.join("\n\n"));
     root.find("p").after("\n\n");
-    const raw = cleanWikicvChapterText(cleanText(root.text()));
-    const content = stripPreamble(raw, novelTitle, title);
+    const cleaned = (
+      fromParagraphs.length >= 20
+        ? fromParagraphs
+        : cleanWikicvChapterText(cleanText(root.text()))
+    );
+    const content = stripPreamble(cleaned, novelTitle, title);
 
     const authorMatch =
       headerText.match(/Tác giả:\s*([^\n]+)/i) ||
-      raw.match(/Tác giả:\s*([^\n]+)/i);
+      cleaned.match(/Tác giả:\s*([^\n]+)/i);
     const bookUrl = findNavUrl($, url, [/^mục lục$/i]);
 
     return {
