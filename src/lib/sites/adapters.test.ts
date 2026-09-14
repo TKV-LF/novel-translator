@@ -9,6 +9,7 @@ import {
 } from "./adapters";
 import { resolveAdapter } from "./index";
 import { inferBookUrl, isWikicvTocUrl } from "./types";
+import { isJunkScrapeContent } from "../scrape-hints";
 import {
   cleanWikicvChapterText,
   extractWikicvIndexMeta,
@@ -145,6 +146,45 @@ describe("site adapters", () => {
       "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-vip";
     const parsed = wikicvAdapter.parseChapter(
       fixture("wikicv-chapter-empty.html"),
+      url
+    );
+    expect(parsed.content.length).toBeLessThan(20);
+  });
+
+  it("parses Jina markdown for a free wikicv chapter without #bookContent", () => {
+    const url =
+      "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-1404-ly-quan-truong-Wg4VSIDbSUN3w7yD";
+    const parsed = wikicvAdapter.parseChapter(
+      fixture("wikicv-chapter-jina.md"),
+      url
+    );
+    expect(parsed.title).toContain("Chương 1404");
+    expect(parsed.novelTitle).toContain("Trung Quốc thợ săn");
+    expect(parsed.content).toContain("Lý Mục");
+    expect(parsed.content).toContain("Lục chiến đội");
+    expect(parsed.content.length).toBeGreaterThan(20);
+    expect(isJunkScrapeContent(parsed.content, parsed.title)).toBe(false);
+  });
+
+  it("uses #bookContent paragraphs when bookContentBody is empty", () => {
+    const url =
+      "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-1404-ly-quan-truong-Wg4VSIDbSUN3w7yD";
+    const parsed = wikicvAdapter.parseChapter(
+      fixture("wikicv-chapter-empty-body.html"),
+      url
+    );
+    expect(parsed.content).toContain("Lý Mục");
+    expect(parsed.content).toContain("hạm đội");
+    expect(parsed.content).not.toContain("Tác giả:");
+    expect(parsed.nextUrl).toContain("/chuong-1405");
+    expect(parsed.author).toBe("Bộ Thương");
+  });
+
+  it("does not treat a Cloudflare block page as chapter text", () => {
+    const url =
+      "https://wikicv.org/truyen/trung-quoc-tho-san/chuong-1404-ly-quan-truong-Wg4VSIDbSUN3w7yD";
+    const parsed = wikicvAdapter.parseChapter(
+      fixture("wikicv-cloudflare.html"),
       url
     );
     expect(parsed.content.length).toBeLessThan(20);
