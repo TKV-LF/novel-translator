@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchChapterViaJina } from "./scrape-jina";
+import { shubaAdapter } from "./sites/adapters";
 import { wikicvAdapter } from "./sites/wikicv";
 
 const CHAPTER_URL =
@@ -125,5 +126,35 @@ describe("fetchChapterViaJina wikicv", () => {
     await expect(
       fetchChapterViaJina(CHAPTER_URL, wikicvAdapter)
     ).rejects.toThrow("EMPTY_CONTENT");
+  });
+});
+
+describe("fetchChapterViaJina 69shuba", () => {
+  it("keeps a chapter whose story mentions 404号宿舍", async () => {
+    const content = [
+      "第9章 9：课表",
+      "邓布利多还在讲话，内容是三个警告：包括禁止进入走廊四楼最右侧的房间。",
+      "背后一栏写着:404号宿舍：希恩·格林、迈克尔·科纳。",
+      "和迈克尔勾肩搭背进入寝室，希恩看到了厚厚的青蓝色被褥。(本章完)",
+    ].join("\n\n");
+
+    stubJina({
+      json: jsonResponse({
+        code: 200,
+        data: {
+          title: "霍格沃茨的学习面板-第9章 9：课表-69书吧",
+          content,
+        },
+      }),
+      html: textResponse("<html><body><p>short</p></body></html>"),
+    });
+
+    const parsed = await fetchChapterViaJina(
+      "https://www.69shuba.com/txt/90442/40755371",
+      shubaAdapter
+    );
+    expect(parsed.title).toContain("第9章");
+    expect(parsed.content).toContain("404号宿舍");
+    expect(parsed.content).toContain("希恩");
   });
 });

@@ -36,7 +36,7 @@ export function isJunkScrapeContent(content: string, title: string): boolean {
     return true;
   }
   if (
-    /(?<![\d])404(?![\d])|403 Forbidden|Please complete human verification/i.test(
+    /403 Forbidden|Please complete human verification|404(?:\s*not\s*found|\s*error|错误)|page not found|页面不存在/i.test(
       content
     )
   ) {

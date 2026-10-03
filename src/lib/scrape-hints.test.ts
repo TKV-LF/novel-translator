@@ -20,6 +20,7 @@ describe("scrape-hints", () => {
 
   it("detects junk 404 pages", () => {
     expect(isJunkScrapeContent("注册 登录 首页", "69书吧_404")).toBe(true);
+    expect(isJunkScrapeContent("404 Not Found", "Not Found")).toBe(true);
     expect(
       isJunkScrapeContent(
         "第1章 测试\n正文内容足够长。".repeat(5),
@@ -30,6 +31,20 @@ describe("scrape-hints", () => {
       isJunkScrapeContent(
         "Trương Hải Siêu báo danh cùng ngày, Lý Mục đi vào đệ tam hạm đội tư lệnh viên văn phòng.",
         "Chương 1404 Lý quân trường"
+      )
+    ).toBe(false);
+  });
+
+  it("does not treat story text with room 404 as a 404 error page", () => {
+    expect(
+      isJunkScrapeContent(
+        [
+          "第9章 9：课表",
+          "邓布利多还在讲话，内容是三个警告：包括禁止进入走廊四楼最右侧的房间。",
+          "背后一栏写着:404号宿舍：希恩·格林、迈克尔·科纳。",
+          "和迈克尔勾肩搭背进入寝室，希恩看到了厚厚的青蓝色被褥。",
+        ].join("\n"),
+        "霍格沃茨的学习面板-第9章 9：课表-69书吧"
       )
     ).toBe(false);
   });
