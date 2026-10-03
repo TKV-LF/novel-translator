@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
 import { mergeCatalogWithDb, parseCatalogCache, fetchDbChapterTocMeta } from "@/lib/catalog";
 import { inferBookUrl } from "@/lib/sites/types";
+import { isGenreKey } from "@/lib/types";
 
 export async function GET(
   _request: Request,
@@ -83,16 +84,7 @@ export async function PATCH(
   try {
     const body = await request.json();
     const genre = typeof body?.genre === "string" ? body.genre : "";
-    const allowed = new Set([
-      "kiem_hiep",
-      "tu_tien",
-      "do_thi",
-      "ngon_tinh",
-      "huyen_huyen",
-      "lich_su",
-      "quan_su",
-    ]);
-    if (!allowed.has(genre)) {
+    if (!isGenreKey(genre)) {
       return NextResponse.json(
         { message: "Thể loại không hợp lệ" },
         { status: 400 }
