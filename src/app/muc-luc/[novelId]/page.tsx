@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { RenameNovel } from "@/components/RenameNovel";
 import { isWikicvHost, isWikicvUrl } from "@/lib/sites/types";
 
 type TocChapter = {
@@ -389,9 +390,14 @@ function MucLucInner() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs text-slate-500">Mục lục</p>
-          <h1 className="font-serif text-2xl text-amber-100">
-            {title || "Đang tải…"}
-          </h1>
+          <RenameNovel
+            novelId={novelId}
+            title={title}
+            onRenamed={setTitle}
+            disabled={busy || syncing || loading || !title}
+            titleAs="h1"
+            titleClassName="font-serif text-2xl text-amber-100"
+          />
           <p className="mt-1 text-sm text-slate-400">
             {imported
               ? hasCatalog

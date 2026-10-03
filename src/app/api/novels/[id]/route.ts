@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
 import { mergeCatalogWithDb, parseCatalogCache, fetchDbChapterTocMeta } from "@/lib/catalog";
 import { inferBookUrl } from "@/lib/sites/types";
-import { isGenreKey } from "@/lib/types";
+import { parseNovelUpdate } from "@/lib/novels";
 
 export async function GET(
   _request: Request,
@@ -83,23 +83,31 @@ export async function PATCH(
   const { id } = await context.params;
   try {
     const body = await request.json();
-    const genre = typeof body?.genre === "string" ? body.genre : "";
-    if (!isGenreKey(genre)) {
+    const parsed = parseNovelUpdate(body);
+    if (!parsed.ok) {
+      return NextResponse.json({ message: parsed.message }, { status: 400 });
+    }
+
+    const existing = await db.novel.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
       return NextResponse.json(
-        { message: "Thể loại không hợp lệ" },
-        { status: 400 }
+        { message: "Không tìm thấy truyện" },
+        { status: 404 }
       );
     }
 
     const novel = await db.novel.update({
       where: { id },
-      data: { genre },
-      select: { id: true, genre: true },
+      data: parsed.data,
+      select: { id: true, title: true, author: true, genre: true },
     });
     return NextResponse.json({ novel });
   } catch {
     return NextResponse.json(
-      { message: "Không cập nhật được thể loại" },
+      { message: "Không cập nhật được truyện" },
       { status: 500 }
     );
   }
