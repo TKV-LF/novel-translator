@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { isInviteCodeConfigured, verifyInviteCode } from "./invite";
 
 describe("invite code", () => {
+  beforeEach(() => {
+    delete process.env.INVITE_CODE;
+  });
+
   afterEach(() => {
     delete process.env.INVITE_CODE;
   });
