@@ -55,3 +55,16 @@ export const glossarySchema = z.object({
     .enum(["character", "term", "location", "skill", "sect", "item", "other"])
     .default("other"),
 });
+
+export const glossaryApplySchema = z.object({
+  novelId: z.string().min(1),
+  chapterId: z.string().min(1).optional(),
+  extraReplacements: z
+    .array(
+      z.object({
+        from: z.string().min(1),
+        to: z.string().min(1),
+      })
+    )
+    .optional(),
+});

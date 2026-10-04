@@ -64,15 +64,16 @@ model Chapter {
 }
 
 model GlossaryEntry {
-  id             String       @id @default(cuid())
-  novelId        String
-  novel          Novel        @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  original       String
-  translated     String
-  type           GlossaryType @default(other)
-  firstChapterId String?
-  firstChapter   Chapter?     @relation("GlossaryFirstChapter", fields: [firstChapterId], references: [id], onDelete: SetNull)
-  createdAt      DateTime     @default(now())
+  id                 String       @id @default(cuid())
+  novelId            String
+  novel              Novel        @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  original           String
+  translated         String
+  previousTranslated String?
+  type               GlossaryType @default(other)
+  firstChapterId     String?
+  firstChapter       Chapter?     @relation("GlossaryFirstChapter", fields: [firstChapterId], references: [id], onDelete: SetNull)
+  createdAt          DateTime     @default(now())
 
   @@unique([novelId, original])
   @@index([novelId])

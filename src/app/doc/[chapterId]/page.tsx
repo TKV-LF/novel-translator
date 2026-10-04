@@ -31,6 +31,7 @@ export default function DocPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const prefs = loadPrefs();
@@ -100,10 +101,51 @@ export default function DocPage() {
     [chapter]
   );
 
+  const onApplyGlossary = useCallback(async () => {
+    if (!chapter) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch("/api/glossary/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          novelId: chapter.novel.id,
+          chapterId: chapter.id,
+        }),
+      });
+      const data = (await res.json()) as {
+        message?: string;
+        chaptersUpdated?: number;
+      };
+      if (!res.ok) {
+        setError(data.message || "Áp dụng thuật ngữ thất bại");
+        return;
+      }
+      setNotice(data.message || "Đã áp dụng thuật ngữ.");
+      if (!data.chaptersUpdated) {
+        return;
+      }
+      const refreshed = await fetch(`/api/chapters/${chapter.id}`);
+      const refreshedData = (await refreshed.json()) as {
+        chapter?: ChapterPayload;
+      };
+      if (refreshed.ok && refreshedData.chapter) {
+        setChapter(refreshedData.chapter);
+      }
+    } catch {
+      setError("Không kết nối được máy chủ");
+    } finally {
+      setBusy(false);
+    }
+  }, [chapter]);
+
   const onRetranslate = useCallback(async () => {
     if (!chapter) return;
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       const res = await fetch(`/api/chapters/${chapter.id}/translate`, {
         method: "POST",
@@ -274,6 +316,14 @@ export default function DocPage() {
         >
           Chương sau →
         </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={busy}
+          onClick={onApplyGlossary}
+        >
+          Áp dụng thuật ngữ
+        </button>
         {isWikicvHost(chapter.novel.sourceHost || "") ? null : (
           <>
             <button
@@ -295,6 +345,9 @@ export default function DocPage() {
         <p className="mb-3 text-sm text-red-400" role="alert">
           {error}
         </p>
+      ) : null}
+      {notice ? (
+        <p className="mb-3 text-sm text-amber-200">{notice}</p>
       ) : null}
 
       {busy ? (

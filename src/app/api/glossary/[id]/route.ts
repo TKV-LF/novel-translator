@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
+import { nextPreviousTranslated } from "@/lib/glossary-apply";
 
 const patchSchema = z.object({
   original: z.string().min(1).optional(),
@@ -32,9 +33,30 @@ export async function PATCH(
       );
     }
 
+    const existing = await db.glossaryEntry.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json(
+        { message: "Không thể cập nhật thuật ngữ" },
+        { status: 400 }
+      );
+    }
+
+    const previousTranslated =
+      parsed.data.translated &&
+      parsed.data.translated.trim() !== existing.translated
+        ? nextPreviousTranslated({
+            translated: existing.translated,
+            previousTranslated: existing.previousTranslated,
+            nextTranslated: parsed.data.translated,
+          })
+        : undefined;
+
     const entry = await db.glossaryEntry.update({
       where: { id },
-      data: parsed.data,
+      data: {
+        ...parsed.data,
+        ...(previousTranslated !== undefined ? { previousTranslated } : {}),
+      },
     });
 
     return NextResponse.json({ entry });

@@ -18,6 +18,7 @@ type Entry = {
   id: string;
   original: string;
   translated: string;
+  previousTranslated?: string | null;
   type: string;
 };
 
@@ -40,7 +41,13 @@ export default function ThuatNguPage() {
   const [translated, setTranslated] = useState("");
   const [type, setType] = useState<string>("character");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(false);
+  const [lastReplacement, setLastReplacement] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,6 +88,9 @@ export default function ThuatNguPage() {
       }
       setOriginal("");
       setTranslated("");
+      setInfo(
+        "Đã thêm. Có thể «Áp dụng thuật ngữ mới cho chương đã dịch» (thay chữ, không dịch lại) nếu bản dịch còn chữ Hán gốc."
+      );
       await load();
     },
     [novelId, original, translated, type, load]
@@ -100,18 +110,56 @@ export default function ThuatNguPage() {
       if (nextOriginal === null) return;
       const nextTranslated = window.prompt("Dịch", entry.translated);
       if (nextTranslated === null) return;
+      const originalValue = nextOriginal.trim() || entry.original;
+      const translatedValue = nextTranslated.trim() || entry.translated;
       await fetch(`/api/glossary/${entry.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          original: nextOriginal.trim() || entry.original,
-          translated: nextTranslated.trim() || entry.translated,
+          original: originalValue,
+          translated: translatedValue,
         }),
       });
+      if (translatedValue !== entry.translated) {
+        setLastReplacement({ from: entry.translated, to: translatedValue });
+        setInfo(
+          `Đã lưu «${entry.translated}» → «${translatedValue}». Áp dụng cho chương đã dịch để đổi tên mà không dịch lại cả chương.`
+        );
+      } else {
+        setInfo("Đã lưu thuật ngữ.");
+      }
       await load();
     },
     [load]
   );
+
+  const onApply = useCallback(async () => {
+    setError("");
+    setInfo("");
+    setApplying(true);
+    try {
+      const res = await fetch("/api/glossary/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          novelId,
+          extraReplacements: lastReplacement ? [lastReplacement] : undefined,
+        }),
+      });
+      const data = (await res.json()) as { message?: string };
+      if (!res.ok) {
+        setError(data.message || "Không áp dụng được thuật ngữ");
+        return;
+      }
+      setInfo(data.message || "Đã áp dụng thuật ngữ cho chương đã dịch.");
+      setLastReplacement(null);
+      await load();
+    } catch {
+      setError("Không kết nối được máy chủ");
+    } finally {
+      setApplying(false);
+    }
+  }, [novelId, lastReplacement, load]);
 
   return (
     <div>
@@ -175,7 +223,35 @@ export default function ThuatNguPage() {
         </button>
       </form>
 
+      <div className="panel mb-6 space-y-3 p-4">
+        <h2 className="text-sm font-medium text-slate-300">
+          Áp dụng cho chương đã dịch
+        </h2>
+        <p className="text-sm text-slate-400">
+          Sau khi sửa tên Việt, bấm nút dưới để thay thuật ngữ cũ → mới trên
+          các chương đã có bản dịch. Cách này không gọi DeepSeek và không viết
+          lại cả chương. Nếu cần dịch lại toàn bộ (đắt hơn), mở trang đọc rồi
+          bấm «Dịch lại».
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={applying || loading}
+            onClick={() => void onApply()}
+          >
+            {applying
+              ? "Đang áp dụng…"
+              : "Áp dụng thuật ngữ mới cho chương đã dịch"}
+          </button>
+          <Link href={`/muc-luc/${novelId}`} className="btn btn-ghost">
+            Mở mục lục để Dịch lại
+          </Link>
+        </div>
+      </div>
+
       {error ? <p className="mb-3 text-sm text-red-400">{error}</p> : null}
+      {info ? <p className="mb-3 text-sm text-amber-200">{info}</p> : null}
 
       {loading ? (
         <p className="text-slate-400">Đang tải…</p>
@@ -197,6 +273,12 @@ export default function ThuatNguPage() {
                 <span className="ml-2 text-xs text-slate-500">
                   {TYPE_LABEL[entry.type] || entry.type}
                 </span>
+                {entry.previousTranslated &&
+                entry.previousTranslated !== entry.translated ? (
+                  <span className="ml-2 text-xs text-amber-300">
+                    chờ áp dụng: {entry.previousTranslated} → {entry.translated}
+                  </span>
+                ) : null}
               </div>
               <div className="flex gap-2">
                 <button
