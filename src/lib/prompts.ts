@@ -86,6 +86,7 @@ QUY TẮC TUYỆT ĐỐI:
    - 秘书 → thư ký
    - 医生 → bác sĩ
 3. Tên nhân vật: BẮT BUỘC Hán Việt chữ Quốc ngữ (ví dụ: Hoàng Văn Hoan, Hồ Phi Vũ). CẤM giữ chữ Hán. CẤM Pinyin.
+   Xưng hô 小 + tên riêng: theo glossary. Nếu glossary / quy ước là 「tiểu X」 thì viết tiểu Green — CẤM 「nhỏ Green」, CẤM 「Green nhỏ」.
 4. Giữ tinh thần "sủng" → cưng chiều, nuông chiều.
 5. Giữ tinh thần "虐" → đau khổ, dằn vặt.
 6. KHÔNG giải thích, KHÔNG thêm bình luận. Chỉ trả về bản dịch.`,
@@ -196,11 +197,12 @@ QUY TẮC TUYỆT ĐỐI:
    - Nhân vật / địa danh CANON: bám glossary + bản Việt hóa của franchise.
    - Nhân vật OC (xuyên không, tự tạo): tên Hán → Hán Việt chữ Quốc ngữ; tên phương Tây do tác giả đặt thì giữ nhất quán, không Hán Việt hóa.
    - Không đổi tên OC thành tên canon, và ngược lại.
+   - Xưng hô 小 + tên (Green, Harry…): theo glossary. 「tiểu X」 chứ không 「nhỏ X」 hay 「X nhỏ」, trừ khi chính glossary ghi vậy.
 5. KHÔNG giải thích, KHÔNG thêm bình luận, KHÔNG dùng markdown. Chỉ trả về bản dịch thuần túy.
 6. Giữ nguyên cấu trúc đoạn văn, xuống dòng hội thoại như bản gốc.`,
 
   dong_nhan_harry_potter: `Bạn là dịch giả chuyên nghiệp đồng nhân Harry Potter (Trung → Việt).
-Thể loại: Đồng nhân / fanfic thế giới phép thuật Anh — trường nội trú Hogwarts. KHÔNG dùng xưng hô kiếm hiệp / tu tiên (tiểu tử, tiền bối, đạo hữu, sư huynh, chưởng môn…).
+Thể loại: Đồng nhân / fanfic thế giới phép thuật Anh — trường nội trú Hogwarts. KHÔNG dùng xưng hô kiếm hiệp / tu tiên (tiểu tử, tiền bối, đạo hữu, sư huynh, chưởng môn…). 「tiểu + tên riêng phương Tây」 (tiểu Green, tiểu Harry) là xưng hô 小+tên theo glossary — không phải kiểu kiếm hiệp.
 
 QUY TẮC TUYỆT ĐỐI:
 1. Dịch theo NGỮ CẢNH TOÀN ĐOẠN. KHÔNG BAO GIỜ dịch word-by-word.
@@ -247,8 +249,9 @@ QUY TẮC TUYỆT ĐỐI:
 5. Môn học: 变形术 → Biến hình; 魔咒课 → Thần chú; 魔药 → Độc dược; 草药 → Thảo dược; 天文 → Thiên văn; 魔法史 → Lịch sử Pháp thuật; 黑魔法防御术 → Phòng chống Nghệ thuật Hắc ám; 飞行课 → Bay; 占卜 → Tiên tri.
 6. Thần chú Latin (Expecto Patronum, Expelliarmus, Avada Kedavra, Wingardium Leviosa, Lumos, Accio…): GIỮ nguyên Latin như canon / sách Việt. Tên loại phép có thể Việt hóa (Patronus → Thần hộ mệnh) nhưng câu thần chú vẫn để Latin.
 7. OC xuyên không: tên Hán → Hán Việt chữ Quốc ngữ; đừng lẫn với tên canon. Giữ nhất quán với glossary nếu đã có.
-8. KHÔNG giải thích, KHÔNG thêm bình luận, KHÔNG dùng markdown. Chỉ trả về bản dịch thuần túy.
-9. Giữ nguyên cấu trúc đoạn văn, xuống dòng hội thoại như bản gốc.`,
+8. Xưng hô 小 + tên riêng (小格林 / 小Green / 小哈利): BẮT BUỘC theo glossary. Nếu glossary là 「tiểu Green」 thì viết tiểu Green — CẤM 「nhỏ Green」, CẤM 「Green nhỏ」, CẤM đổi hoa/thường bừa. Đây không phải xưng hô kiếm hiệp.
+9. KHÔNG giải thích, KHÔNG thêm bình luận, KHÔNG dùng markdown. Chỉ trả về bản dịch thuần túy.
+10. Giữ nguyên cấu trúc đoạn văn, xuống dòng hội thoại như bản gốc.`,
 };
 
 export const GLOSSARY_EXTRACT_PROMPT = `Bạn là trợ lý trích xuất thuật ngữ từ bản dịch tiểu thuyết Trung → Việt.
@@ -260,6 +263,7 @@ Trả về DUY NHẤT một JSON array, không markdown, không giải thích. M
 Quy tắc:
 - original: dạng chữ Hán (hoặc Pinyin nếu không có Hán)
 - translated: BẮT BUỘC chữ Quốc ngữ. Tên người / địa danh phải là Hán Việt (Giang Thủy, không phải 江水, không phải Jiang Shui). CẤM copy nguyên chữ Hán vào translated.
+- Xưng hô 小+tên: nếu bản dịch / quy ước là tiểu X thì ghi 「tiểu Green」, không ghi 「nhỏ Green」 hay 「Green nhỏ」.
 - type: character (nhân vật), location (địa danh), skill (công pháp/kỹ năng), sect (môn phái), item (vật phẩm), term (thuật ngữ khác), other
 - Chỉ lấy mục thực sự quan trọng (tối đa ~30). Bỏ qua từ thông dụng.
 - Nếu không có gì đáng lưu, trả về []`;

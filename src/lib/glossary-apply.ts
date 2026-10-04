@@ -40,16 +40,23 @@ export function isUnsafeReplacementFrom(from: string): boolean {
   return from.length < 3;
 }
 
+function replacementKey(from: string): string {
+  return hasHan(from) ? from : from.toLocaleLowerCase("vi");
+}
+
 function alreadyHasExpandedForm(
   text: string,
   index: number,
-  from: string,
+  matched: string,
   to: string
 ): boolean {
-  if (!to.startsWith(from)) return false;
-  const extra = to.slice(from.length);
-  if (!extra) return false;
-  return text.startsWith(extra, index + from.length);
+  const matchedLower = matched.toLocaleLowerCase("vi");
+  const toLower = to.toLocaleLowerCase("vi");
+  if (!toLower.startsWith(matchedLower)) return false;
+  const extraLen = to.length - matched.length;
+  if (extraLen <= 0) return false;
+  const following = text.slice(index + matched.length, index + matched.length + extraLen);
+  return following.toLocaleLowerCase("vi") === to.slice(matched.length).toLocaleLowerCase("vi");
 }
 
 export function normalizeReplacements(
@@ -61,7 +68,7 @@ export function normalizeReplacements(
     const to = raw.to.trim();
     if (!from || !to || from === to) continue;
     if (isUnsafeReplacementFrom(from)) continue;
-    seen.set(from, { from, to });
+    seen.set(replacementKey(from), { from, to });
   }
   return [...seen.values()].sort((a, b) => b.from.length - a.from.length);
 }
@@ -91,12 +98,12 @@ export function applyTermReplacements(
       ? new RegExp(escapeRegExp(from), "g")
       : new RegExp(
           `(?<![\\p{L}\\p{N}])${escapeRegExp(from)}(?![\\p{L}\\p{N}])`,
-          "gu"
+          "gui"
         );
 
     next = next.replace(pattern, (match, offset, full) => {
       const source = typeof full === "string" ? full : next;
-      if (alreadyHasExpandedForm(source, offset, from, to)) {
+      if (alreadyHasExpandedForm(source, offset, match, to)) {
         return match;
       }
       counts[i].count += 1;
@@ -115,6 +122,53 @@ export function applyTermReplacements(
   };
 }
 
+const TIEU_NAME_RE = /^tiểu\s+(.+)$/i;
+
+function tieuAddressName(translated: string): string | null {
+  const match = translated.match(TIEU_NAME_RE);
+  if (!match) return null;
+  const name = match[1].trim();
+  if (!name || /^thư\b/i.test(name)) return null;
+  return name;
+}
+
+function shouldPlanAddressVariants(entry: GlossaryApplyEntry, name: string): boolean {
+  const original = entry.original.trim();
+  const previous = entry.previousTranslated?.trim() ?? "";
+  if (original.startsWith("小")) return true;
+  const previousKey = previous.toLocaleLowerCase("vi");
+  const nameKey = name.toLocaleLowerCase("vi");
+  return (
+    previousKey === `nhỏ ${nameKey}` ||
+    previousKey === `${nameKey} nhỏ`
+  );
+}
+
+export function planAddressFormReplacements(
+  entry: GlossaryApplyEntry
+): TermReplacement[] {
+  const translated = entry.translated.trim();
+  const name = tieuAddressName(translated);
+  if (!name || !shouldPlanAddressVariants(entry, name)) return [];
+
+  const original = entry.original.trim();
+  const variants = new Set<string>([`nhỏ ${name}`, `${name} nhỏ`]);
+  if (original.startsWith("小")) {
+    variants.add(original);
+    variants.add(`小${name}`);
+    variants.add(`小 ${name}`);
+    const rest = original.slice(1).trim();
+    if (rest && rest !== name) {
+      variants.add(`小${rest}`);
+      variants.add(`小 ${rest}`);
+    }
+  }
+
+  return [...variants]
+    .filter((from) => from && from !== translated)
+    .map((from) => ({ from, to: translated }));
+}
+
 export function planGlossaryReplacements(
   entries: GlossaryApplyEntry[],
   extra: TermReplacement[] = []
@@ -131,6 +185,7 @@ export function planGlossaryReplacements(
     if (original && original !== translated) {
       planned.push({ from: original, to: translated });
     }
+    planned.push(...planAddressFormReplacements(entry));
   }
   planned.push(...extra);
   return planned;

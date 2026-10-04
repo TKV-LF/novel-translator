@@ -31,6 +31,14 @@ describe("DEFAULT_PROMPTS", () => {
     expect(prompt).toMatch(/kiếm hiệp|tu tiên/);
     expect(prompt).toMatch(/Chỉ trả về bản dịch/);
   });
+
+  it("prefers tiểu X over nhỏ X / X nhỏ for glossary address forms", () => {
+    expect(DEFAULT_PROMPTS.dong_nhan_harry_potter).toMatch(/tiểu Green/);
+    expect(DEFAULT_PROMPTS.dong_nhan_harry_potter).toMatch(/nhỏ Green/);
+    expect(DEFAULT_PROMPTS.dong_nhan_harry_potter).toMatch(/Green nhỏ/);
+    expect(DEFAULT_PROMPTS.dong_nhan).toMatch(/tiểu X/);
+    expect(DEFAULT_PROMPTS.do_thi).toMatch(/tiểu Green/);
+  });
 });
 
 describe("GENRES", () => {

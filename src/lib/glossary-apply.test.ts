@@ -96,6 +96,29 @@ describe("applyTermReplacements", () => {
     expect(result.text).toBe(text);
     expect(result.totalCount).toBe(0);
   });
+
+  it("matches Latin/Vietnamese terms case-insensitively and keeps the glossary form", () => {
+    const result = applyTermReplacements(
+      'Bà Béo gọi: 「nhỏ green」. "Ồ—— Green nhỏ!"',
+      [
+        { from: "nhỏ Green", to: "tiểu Green" },
+        { from: "Green nhỏ", to: "tiểu Green" },
+      ]
+    );
+
+    expect(result.text).toBe(
+      'Bà Béo gọi: 「tiểu Green」. "Ồ—— tiểu Green!"'
+    );
+    expect(result.totalCount).toBe(2);
+  });
+
+  it("does not rewrite a shorter name inside an unrelated longer word", () => {
+    const result = applyTermReplacements("Greengrass đứng cạnh Green nhỏ.", [
+      { from: "Green nhỏ", to: "tiểu Green" },
+    ]);
+
+    expect(result.text).toBe("Greengrass đứng cạnh tiểu Green.");
+  });
 });
 
 describe("planGlossaryReplacements", () => {
@@ -136,6 +159,61 @@ describe("planGlossaryReplacements", () => {
         { from: "Lý Duệ", to: "Lý Minh" },
       ])
     );
+  });
+
+  it("plans nhỏ X and X nhỏ when glossary wants tiểu X for a 小-name", () => {
+    const planned = planGlossaryReplacements([
+      {
+        original: "小格林",
+        translated: "tiểu Green",
+        previousTranslated: null,
+      },
+    ]);
+
+    expect(planned).toEqual(
+      expect.arrayContaining([
+        { from: "小格林", to: "tiểu Green" },
+        { from: "nhỏ Green", to: "tiểu Green" },
+        { from: "Green nhỏ", to: "tiểu Green" },
+        { from: "小Green", to: "tiểu Green" },
+      ])
+    );
+  });
+
+  it("does not invent tiểu-variants when the user kept X nhỏ", () => {
+    const planned = planGlossaryReplacements([
+      {
+        original: "小罗伯特",
+        translated: "Robert nhỏ",
+        previousTranslated: null,
+      },
+    ]);
+
+    expect(planned).toEqual([{ from: "小罗伯特", to: "Robert nhỏ" }]);
+    expect(planned).not.toEqual(
+      expect.arrayContaining([{ from: "nhỏ Robert", to: "Robert nhỏ" }])
+    );
+  });
+
+  it("remaps Green nhỏ / nhỏ green in a chapter when glossary says tiểu Green", () => {
+    const replacements = planGlossaryReplacements([
+      {
+        original: "小格林",
+        translated: "tiểu Green",
+        previousTranslated: null,
+      },
+      { original: "格林", translated: "Green", previousTranslated: null },
+    ]);
+    const result = applyTermReplacements(
+      'đem bánh quy đi đi, Green nhỏ, chúng ta phải trả.\n"Ồ—— Green nhỏ!"\n「nhỏ green」',
+      replacements
+    );
+
+    expect(result.text).toBe(
+      'đem bánh quy đi đi, tiểu Green, chúng ta phải trả.\n"Ồ—— tiểu Green!"\n「tiểu Green」'
+    );
+    expect(result.text).not.toMatch(/nhỏ/i);
+    expect(result.text).not.toContain("小");
   });
 });
 
