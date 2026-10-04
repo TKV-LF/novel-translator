@@ -245,7 +245,7 @@ export default function ThuatNguPage() {
               : "Áp dụng thuật ngữ mới cho chương đã dịch"}
           </button>
           <Link href={`/muc-luc/${novelId}`} className="btn btn-ghost">
-            Mở mục lục để Dịch lại
+            Áp dụng hàng loạt trên mục lục
           </Link>
         </div>
       </div>

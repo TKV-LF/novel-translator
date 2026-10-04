@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth/session";
 import { mergeCatalogWithDb, parseCatalogCache, fetchDbChapterTocMeta } from "@/lib/catalog";
+import { hasPendingGlossaryApply } from "@/lib/glossary-apply";
 import { inferBookUrl } from "@/lib/sites/types";
 import { parseNovelUpdate } from "@/lib/novels";
 
@@ -25,6 +26,9 @@ export async function GET(
           take: 1,
         },
         _count: { select: { glossary: true } },
+        glossary: {
+          select: { translated: true, previousTranslated: true },
+        },
       },
     });
 
@@ -56,6 +60,8 @@ export async function GET(
         createdAt: novel.createdAt,
         progress: novel.progress,
         glossaryCount: novel._count.glossary,
+        glossaryPendingCount: novel.glossary.filter(hasPendingGlossaryApply)
+          .length,
         catalogSyncedAt: catalog?.syncedAt ?? null,
         catalogChapterCount: catalog?.chapters.length ?? 0,
         inferredBookUrl,

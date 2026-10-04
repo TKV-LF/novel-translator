@@ -56,15 +56,21 @@ export const glossarySchema = z.object({
     .default("other"),
 });
 
-export const glossaryApplySchema = z.object({
-  novelId: z.string().min(1),
-  chapterId: z.string().min(1).optional(),
-  extraReplacements: z
-    .array(
-      z.object({
-        from: z.string().min(1),
-        to: z.string().min(1),
-      })
-    )
-    .optional(),
-});
+export const glossaryApplySchema = z
+  .object({
+    novelId: z.string().min(1),
+    chapterId: z.string().min(1).optional(),
+    chapterIds: z.array(z.string().min(1)).min(1).max(2000).optional(),
+    extraReplacements: z
+      .array(
+        z.object({
+          from: z.string().min(1),
+          to: z.string().min(1),
+        })
+      )
+      .optional(),
+  })
+  .refine((data) => !(data.chapterId && data.chapterIds), {
+    message: "Không gửi đồng thời chapterId và chapterIds",
+    path: ["chapterIds"],
+  });

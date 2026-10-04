@@ -10,7 +10,7 @@ Design source of truth: [`docs/superpowers/specs/2026-08-31-novel-translator-des
 - Shared library of novels/chapters/glossary; **per-user** reading progress
 - Paste URL (69shuba / uukanshu / twkan / uuread) or paste Chinese text
 - Genre-aware DeepSeek translation + glossary inject / auto-extract
-- After editing glossary terms, apply cheap local remaps to already-translated chapters (no full DeepSeek rewrite)
+- After editing glossary terms, apply cheap local remaps to already-translated chapters from **Thuật ngữ**, the reader, or mass-apply on **Mục lục** (no full DeepSeek rewrite)
 - Vietnamese-first reader with Prev/Next, “Áp dụng thuật ngữ”, “Dịch lại”, Chinese toggle
 - PWA installable; offline = already-saved chapters only
 - Client prefs in `localStorage`: auto-translate, font size, theme, default genre
@@ -78,6 +78,7 @@ Unsupported hosts return a Vietnamese error. QQ阅读 / Qidian are out of v1.
 | `/thu-vien` | Shared library + progress badge |
 | `/them` | Paste URL or text |
 | `/doc/[chapterId]` | Reader |
+| `/muc-luc/[novelId]` | Table of contents + mass apply glossary |
 | `/thuat-ngu/[novelId]` | Glossary CRUD |
 | `/cai-dat` | Client preferences + bookmarklet for Cloudflare sites |
 

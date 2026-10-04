@@ -161,6 +161,87 @@ export function hasPendingGlossaryApply(entry: {
   return Boolean(previous && previous !== entry.translated.trim());
 }
 
+export function tocChapterKey(chapter: {
+  id: string | null;
+  sourceUrl?: string | null;
+  title: string;
+}): string {
+  return chapter.id ?? chapter.sourceUrl ?? chapter.title;
+}
+
+export function selectedTranslatedChapterIds(
+  chapters: {
+    id: string | null;
+    title: string;
+    sourceUrl?: string | null;
+    hasTranslation: boolean;
+  }[],
+  selectedKeys: Iterable<string>
+): string[] {
+  const selected = new Set(selectedKeys);
+  const ids: string[] = [];
+  for (const chapter of chapters) {
+    if (
+      chapter.id &&
+      chapter.hasTranslation &&
+      selected.has(tocChapterKey(chapter))
+    ) {
+      ids.push(chapter.id);
+    }
+  }
+  return ids;
+}
+
+export function planMassGlossaryApply(input: {
+  novelId: string;
+  scope: "all" | "selected";
+  selectedTranslatedIds: string[];
+}):
+  | { ok: true; body: { novelId: string; chapterIds?: string[] } }
+  | { ok: false; message: string } {
+  if (input.scope === "selected") {
+    if (!input.selectedTranslatedIds.length) {
+      return { ok: false, message: "Chưa chọn chương đã dịch." };
+    }
+    return {
+      ok: true,
+      body: {
+        novelId: input.novelId,
+        chapterIds: input.selectedTranslatedIds,
+      },
+    };
+  }
+  return { ok: true, body: { novelId: input.novelId } };
+}
+
+export function filterChaptersForGlossaryApply<
+  T extends { id: string },
+>(
+  chapters: T[],
+  scope: { chapterId?: string; chapterIds?: string[] }
+): T[] {
+  if (scope.chapterId) {
+    return chapters.filter((chapter) => chapter.id === scope.chapterId);
+  }
+  if (scope.chapterIds?.length) {
+    const allowed = new Set(scope.chapterIds);
+    return chapters.filter((chapter) => allowed.has(chapter.id));
+  }
+  return chapters;
+}
+
+export function shouldSyncPendingGlossary(input: {
+  singleChapter: boolean;
+  requestedIds: string[] | null;
+  translatedIds: string[];
+}): boolean {
+  if (input.singleChapter) return false;
+  if (!input.requestedIds) return true;
+  if (!input.translatedIds.length) return false;
+  const requested = new Set(input.requestedIds);
+  return input.translatedIds.every((id) => requested.has(id));
+}
+
 export function applyReplacementsToChapterTexts(
   chapters: { id: string; translatedText: string | null }[],
   replacements: TermReplacement[]
@@ -204,6 +285,7 @@ export function applyReplacementsToChapterTexts(
 export async function applyGlossaryToTranslatedChapters(opts: {
   novelId: string;
   chapterId?: string;
+  chapterIds?: string[];
   extraReplacements?: TermReplacement[];
 }): Promise<{
   chaptersScanned: number;
@@ -220,12 +302,18 @@ export async function applyGlossaryToTranslatedChapters(opts: {
     throw new Error("NOVEL_NOT_FOUND");
   }
 
-  if (opts.chapterId) {
-    const chapter = await db.chapter.findUnique({
-      where: { id: opts.chapterId },
-      select: { id: true, novelId: true },
+  const requestedIds = opts.chapterId
+    ? [opts.chapterId]
+    : opts.chapterIds?.length
+      ? [...new Set(opts.chapterIds)]
+      : null;
+
+  if (requestedIds) {
+    const found = await db.chapter.findMany({
+      where: { novelId: opts.novelId, id: { in: requestedIds } },
+      select: { id: true },
     });
-    if (!chapter || chapter.novelId !== opts.novelId) {
+    if (found.length !== requestedIds.length) {
       throw new Error("CHAPTER_NOT_FOUND");
     }
   }
@@ -245,13 +333,17 @@ export async function applyGlossaryToTranslatedChapters(opts: {
     opts.extraReplacements
   );
 
-  const chapters = await db.chapter.findMany({
+  const translatedChapters = await db.chapter.findMany({
     where: {
       novelId: opts.novelId,
       translatedText: { not: null },
-      ...(opts.chapterId ? { id: opts.chapterId } : {}),
     },
     select: { id: true, translatedText: true },
+  });
+
+  const chapters = filterChaptersForGlossaryApply(translatedChapters, {
+    chapterId: opts.chapterId,
+    chapterIds: requestedIds ?? undefined,
   });
 
   const result = applyReplacementsToChapterTexts(chapters, replacements);
@@ -264,10 +356,14 @@ export async function applyGlossaryToTranslatedChapters(opts: {
   }
 
   let pendingSynced = false;
-  if (!opts.chapterId) {
-    const pending = entries.filter((entry) =>
-      hasPendingGlossaryApply(entry)
-    );
+  if (
+    shouldSyncPendingGlossary({
+      singleChapter: Boolean(opts.chapterId),
+      requestedIds,
+      translatedIds: translatedChapters.map((chapter) => chapter.id),
+    })
+  ) {
+    const pending = entries.filter((entry) => hasPendingGlossaryApply(entry));
     for (const entry of pending) {
       await db.glossaryEntry.update({
         where: { id: entry.id },

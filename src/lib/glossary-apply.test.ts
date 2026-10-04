@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { glossaryApplySchema } from "./validation";
 import {
   applyReplacementsToChapterTexts,
   applyTermReplacements,
+  filterChaptersForGlossaryApply,
   nextPreviousTranslated,
   planGlossaryReplacements,
+  planMassGlossaryApply,
+  selectedTranslatedChapterIds,
+  shouldSyncPendingGlossary,
 } from "./glossary-apply";
 
 describe("applyTermReplacements", () => {
@@ -178,5 +183,182 @@ describe("applyReplacementsToChapterTexts", () => {
     expect(result.updated).toEqual([
       { id: "c1", translatedText: "Lý Duệ An bước vào." },
     ]);
+  });
+});
+
+describe("filterChaptersForGlossaryApply", () => {
+  const chapters = [
+    { id: "c1", translatedText: "Một" },
+    { id: "c2", translatedText: "Hai" },
+    { id: "c3", translatedText: "Ba" },
+  ];
+
+  it("keeps every chapter when no scope is given", () => {
+    expect(filterChaptersForGlossaryApply(chapters, {})).toEqual(chapters);
+  });
+
+  it("keeps one chapter for the reader apply path", () => {
+    expect(
+      filterChaptersForGlossaryApply(chapters, { chapterId: "c2" })
+    ).toEqual([{ id: "c2", translatedText: "Hai" }]);
+  });
+
+  it("keeps the selected subset for mass apply from mục lục", () => {
+    expect(
+      filterChaptersForGlossaryApply(chapters, {
+        chapterIds: ["c3", "c1", "c3"],
+      })
+    ).toEqual([
+      { id: "c1", translatedText: "Một" },
+      { id: "c3", translatedText: "Ba" },
+    ]);
+  });
+});
+
+describe("shouldSyncPendingGlossary", () => {
+  it("never clears pending after a single-chapter apply", () => {
+    expect(
+      shouldSyncPendingGlossary({
+        singleChapter: true,
+        requestedIds: ["c1"],
+        translatedIds: ["c1"],
+      })
+    ).toBe(false);
+  });
+
+  it("clears pending when applying to the whole novel", () => {
+    expect(
+      shouldSyncPendingGlossary({
+        singleChapter: false,
+        requestedIds: null,
+        translatedIds: ["c1", "c2"],
+      })
+    ).toBe(true);
+  });
+
+  it("clears pending when mục lục selection covers every translated chapter", () => {
+    expect(
+      shouldSyncPendingGlossary({
+        singleChapter: false,
+        requestedIds: ["c2", "c1"],
+        translatedIds: ["c1", "c2"],
+      })
+    ).toBe(true);
+  });
+
+  it("keeps pending when only some translated chapters were selected", () => {
+    expect(
+      shouldSyncPendingGlossary({
+        singleChapter: false,
+        requestedIds: ["c1"],
+        translatedIds: ["c1", "c2"],
+      })
+    ).toBe(false);
+  });
+});
+
+describe("planMassGlossaryApply", () => {
+  it("sends only novelId for apply-all so the cheap remap covers every translated chapter", () => {
+    expect(
+      planMassGlossaryApply({
+        novelId: "n1",
+        scope: "all",
+        selectedTranslatedIds: ["c1"],
+      })
+    ).toEqual({ ok: true, body: { novelId: "n1" } });
+  });
+
+  it("sends chapterIds for the selected translated subset", () => {
+    expect(
+      planMassGlossaryApply({
+        novelId: "n1",
+        scope: "selected",
+        selectedTranslatedIds: ["c2", "c4"],
+      })
+    ).toEqual({
+      ok: true,
+      body: { novelId: "n1", chapterIds: ["c2", "c4"] },
+    });
+  });
+
+  it("refuses selected apply when no translated chapter is checked", () => {
+    expect(
+      planMassGlossaryApply({
+        novelId: "n1",
+        scope: "selected",
+        selectedTranslatedIds: [],
+      })
+    ).toEqual({
+      ok: false,
+      message: "Chưa chọn chương đã dịch.",
+    });
+  });
+});
+
+describe("selectedTranslatedChapterIds", () => {
+  it("returns saved translated chapters that are checked on mục lục", () => {
+    const ids = selectedTranslatedChapterIds(
+      [
+        {
+          id: "c1",
+          title: "Chương 1",
+          sourceUrl: "https://example.com/1",
+          hasTranslation: true,
+        },
+        {
+          id: "c2",
+          title: "Chương 2",
+          sourceUrl: "https://example.com/2",
+          hasTranslation: true,
+        },
+        {
+          id: null,
+          title: "Chương 3",
+          sourceUrl: "https://example.com/3",
+          hasTranslation: false,
+        },
+        {
+          id: "c4",
+          title: "Chương 4",
+          sourceUrl: "https://example.com/4",
+          hasTranslation: false,
+        },
+      ],
+      ["c1", "https://example.com/3", "c4"]
+    );
+
+    expect(ids).toEqual(["c1"]);
+  });
+});
+
+describe("glossaryApplySchema", () => {
+  it("still accepts novel-wide and single-chapter apply bodies", () => {
+    expect(glossaryApplySchema.safeParse({ novelId: "n1" }).success).toBe(
+      true
+    );
+    expect(
+      glossaryApplySchema.safeParse({ novelId: "n1", chapterId: "c1" })
+        .success
+    ).toBe(true);
+  });
+
+  it("accepts a mục lục mass apply with chapterIds", () => {
+    const parsed = glossaryApplySchema.safeParse({
+      novelId: "n1",
+      chapterIds: ["c1", "c2"],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.chapterIds).toEqual(["c1", "c2"]);
+    }
+  });
+
+  it("rejects sending both chapterId and chapterIds", () => {
+    const parsed = glossaryApplySchema.safeParse({
+      novelId: "n1",
+      chapterId: "c1",
+      chapterIds: ["c2"],
+    });
+    expect(parsed.success).toBe(false);
   });
 });

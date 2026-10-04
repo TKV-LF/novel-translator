@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     const result = await applyGlossaryToTranslatedChapters({
       novelId: parsed.data.novelId,
       chapterId: parsed.data.chapterId,
+      chapterIds: parsed.data.chapterIds,
       extraReplacements: parsed.data.extraReplacements,
     });
 

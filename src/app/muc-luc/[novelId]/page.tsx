@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { RenameNovel } from "@/components/RenameNovel";
+import {
+  planMassGlossaryApply,
+  selectedTranslatedChapterIds,
+  tocChapterKey,
+} from "@/lib/glossary-apply";
 import { isWikicvHost, isWikicvUrl } from "@/lib/sites/types";
 
 type TocChapter = {
@@ -16,7 +21,7 @@ type TocChapter = {
 };
 
 function chapterKey(chapter: TocChapter): string {
-  return chapter.id ?? chapter.sourceUrl ?? chapter.title;
+  return tocChapterKey(chapter);
 }
 
 const TOC_PAGE_SIZE = 200;
@@ -51,8 +56,12 @@ function MucLucInner() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [autoSyncAttempted, setAutoSyncAttempted] = useState(false);
   const [page, setPage] = useState(1);
+  const [glossaryCount, setGlossaryCount] = useState(0);
+  const [glossaryPendingCount, setGlossaryPendingCount] = useState(0);
+  const [applyingGlossary, setApplyingGlossary] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,6 +76,8 @@ function MucLucInner() {
           sourceNovelUrl?: string | null;
           inferredBookUrl?: string | null;
           catalogSyncedAt?: string | null;
+          glossaryCount?: number;
+          glossaryPendingCount?: number;
         };
         message?: string;
       };
@@ -82,6 +93,8 @@ function MucLucInner() {
         data.novel.sourceNovelUrl || data.novel.inferredBookUrl || ""
       );
       setCatalogSyncedAt(data.novel.catalogSyncedAt ?? null);
+      setGlossaryCount(data.novel.glossaryCount ?? 0);
+      setGlossaryPendingCount(data.novel.glossaryPendingCount ?? 0);
       setError("");
       return data.novel;
     } catch {
@@ -246,6 +259,16 @@ function MucLucInner() {
     });
   }, [visibleChapters]);
 
+  const selectTranslated = useCallback(() => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const c of visibleChapters) {
+        if (c.hasTranslation) next.add(chapterKey(c));
+      }
+      return next;
+    });
+  }, [visibleChapters]);
+
   const clearSelection = useCallback(() => {
     setSelected(new Set());
   }, []);
@@ -256,6 +279,11 @@ function MucLucInner() {
         (c) =>
           selected.has(chapterKey(c)) && (c.hasContent || c.hasTranslation)
       ).length,
+    [chapters, selected]
+  );
+
+  const selectedTranslatedIds = useMemo(
+    () => selectedTranslatedChapterIds(chapters, selected),
     [chapters, selected]
   );
 
@@ -354,6 +382,68 @@ function MucLucInner() {
     }
   }, [chapters, genre, imported, novelId, selected]);
 
+  const onApplyGlossary = useCallback(
+    async (scope: "all" | "selected") => {
+      const planned = planMassGlossaryApply({
+        novelId,
+        scope,
+        selectedTranslatedIds,
+      });
+      if (!planned.ok) {
+        setError(planned.message);
+        setInfo("");
+        return;
+      }
+      if (scope === "all" && translatedCount === 0) {
+        setError("Chưa có chương đã dịch để áp dụng.");
+        setInfo("");
+        return;
+      }
+
+      setApplyingGlossary(true);
+      setError("");
+      setInfo("");
+      setProgress(
+        scope === "selected"
+          ? `Đang áp dụng thuật ngữ cho ${selectedTranslatedIds.length} chương đã chọn…`
+          : `Đang áp dụng thuật ngữ cho ${translatedCount} chương đã dịch…`
+      );
+      try {
+        const res = await fetch("/api/glossary/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(planned.body),
+        });
+        const data = (await res.json()) as {
+          message?: string;
+          pendingSynced?: boolean;
+        };
+        if (!res.ok) {
+          setError(data.message || "Không áp dụng được thuật ngữ");
+          return;
+        }
+        setInfo(data.message || "Đã áp dụng thuật ngữ cho chương đã dịch.");
+        if (data.pendingSynced) {
+          setGlossaryPendingCount(0);
+        }
+      } catch {
+        setError("Không kết nối được máy chủ");
+      } finally {
+        setApplyingGlossary(false);
+        setProgress("");
+      }
+    },
+    [novelId, selectedTranslatedIds, translatedCount]
+  );
+
+  const onApplySelectedGlossary = useCallback(() => {
+    void onApplyGlossary("selected");
+  }, [onApplyGlossary]);
+
+  const onApplyAllGlossary = useCallback(() => {
+    void onApplyGlossary("all");
+  }, [onApplyGlossary]);
+
   const backHref = fromChapterId ? `/doc/${fromChapterId}` : "/thu-vien";
   const hasCatalog = Boolean(catalogSyncedAt);
   const showPagination = chapters.length > TOC_PAGE_SIZE;
@@ -365,7 +455,7 @@ function MucLucInner() {
         <button
           type="button"
           className="btn btn-ghost px-2 py-1 text-xs"
-          disabled={busy || syncing || currentPage <= 1}
+          disabled={busy || syncing || applyingGlossary || currentPage <= 1}
           onClick={onPrevPage}
         >
           ← Trước
@@ -376,7 +466,7 @@ function MucLucInner() {
         <button
           type="button"
           className="btn btn-ghost px-2 py-1 text-xs"
-          disabled={busy || syncing || currentPage >= totalPages}
+          disabled={busy || syncing || applyingGlossary || currentPage >= totalPages}
           onClick={onNextPage}
         >
           Sau →
@@ -394,7 +484,7 @@ function MucLucInner() {
             novelId={novelId}
             title={title}
             onRenamed={setTitle}
-            disabled={busy || syncing || loading || !title}
+            disabled={busy || syncing || applyingGlossary || loading || !title}
             titleAs="h1"
             titleClassName="font-serif text-2xl text-amber-100"
           />
@@ -408,9 +498,14 @@ function MucLucInner() {
                 : `Đã lấy ${fetchedCount} chương · đã dịch ${translatedCount}. Tải mục lục để xem toàn bộ.`}
           </p>
         </div>
-        <Link href={backHref} className="btn btn-ghost">
-          Quay lại
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/thuat-ngu/${novelId}`} className="btn btn-ghost">
+            Thuật ngữ
+          </Link>
+          <Link href={backHref} className="btn btn-ghost">
+            Quay lại
+          </Link>
+        </div>
       </div>
 
       <div className="panel mb-4 space-y-3 p-4">
@@ -421,13 +516,13 @@ function MucLucInner() {
             className="input flex-1"
             placeholder="https://www.69shuba.com/book/84165/"
             value={bookUrl}
-            disabled={syncing || busy}
+            disabled={syncing || busy || applyingGlossary}
             onChange={(e) => setBookUrl(e.target.value)}
           />
           <button
             type="button"
             className="btn btn-primary shrink-0"
-            disabled={syncing || busy || !bookUrl.trim()}
+            disabled={syncing || busy || applyingGlossary || !bookUrl.trim()}
             onClick={() => void syncToc(bookUrl)}
           >
             {syncing ? "Đang tải…" : "Tải mục lục"}
@@ -445,11 +540,73 @@ function MucLucInner() {
         )}
       </div>
 
+      <div className="panel mb-4 space-y-3 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-medium text-slate-300">
+            Áp dụng thuật ngữ cho chương đã dịch
+          </h2>
+          <span className="rounded-full border border-amber-900/70 px-2 py-0.5 text-[11px] text-amber-200">
+            Dùng model auto
+          </span>
+        </div>
+        <p className="text-sm text-slate-400">
+          Thay tên cũ → mới trên nhiều / tất cả chương đã dịch. Không «Dịch
+          lại» cả chương. Dùng model auto — hàng loạt là thay chữ tại chỗ
+          (miễn phí); không gọi DeepSeek trừ khi trang dịch vốn đã dùng model.
+        </p>
+        <p className="text-xs text-slate-500">
+          {glossaryPendingCount > 0
+            ? `Có ${glossaryPendingCount} thuật ngữ chờ áp dụng${
+                glossaryCount ? ` / ${glossaryCount} mục` : ""
+              }.`
+            : glossaryCount > 0
+              ? `${glossaryCount} thuật ngữ · không có thay đổi đang chờ.`
+              : "Chưa có thuật ngữ. Thêm hoặc sửa trên trang Thuật ngữ trước."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={
+              busy ||
+              syncing ||
+              applyingGlossary ||
+              glossaryCount === 0 ||
+              selectedTranslatedIds.length === 0
+            }
+            onClick={onApplySelectedGlossary}
+          >
+            {applyingGlossary
+              ? "Đang áp dụng…"
+              : `Áp dụng cho ${selectedTranslatedIds.length || 0} chương đã chọn`}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={
+              busy ||
+              syncing ||
+              applyingGlossary ||
+              translatedCount === 0 ||
+              glossaryCount === 0
+            }
+            onClick={onApplyAllGlossary}
+          >
+            {applyingGlossary
+              ? "Đang áp dụng…"
+              : `Áp dụng cho tất cả ${translatedCount} chương đã dịch`}
+          </button>
+          <Link href={`/thuat-ngu/${novelId}`} className="btn btn-ghost">
+            Sửa thuật ngữ
+          </Link>
+        </div>
+      </div>
+
       <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"
           className="btn btn-ghost"
-          disabled={busy || syncing || !chapters.length}
+          disabled={busy || syncing || applyingGlossary || !chapters.length}
           onClick={selectUnfetched}
         >
           {imported ? "Chọn chưa tải (trang)" : "Chọn chưa lấy (trang)"}
@@ -458,7 +615,7 @@ function MucLucInner() {
           <button
             type="button"
             className="btn btn-ghost"
-            disabled={busy || syncing || !chapters.length}
+            disabled={busy || syncing || applyingGlossary || !chapters.length}
             onClick={selectFetched}
           >
             Chọn đã tải (trang)
@@ -467,7 +624,7 @@ function MucLucInner() {
           <button
             type="button"
             className="btn btn-ghost"
-            disabled={busy || syncing || !chapters.length}
+            disabled={busy || syncing || applyingGlossary || !chapters.length}
             onClick={selectUntranslated}
           >
             Chọn chưa dịch (trang)
@@ -476,7 +633,15 @@ function MucLucInner() {
         <button
           type="button"
           className="btn btn-ghost"
-          disabled={busy || syncing || !chapters.length}
+          disabled={busy || syncing || applyingGlossary || !chapters.length}
+          onClick={selectTranslated}
+        >
+          Chọn đã dịch (trang)
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={busy || syncing || applyingGlossary || !chapters.length}
           onClick={selectAll}
         >
           Chọn tất cả (trang)
@@ -484,7 +649,7 @@ function MucLucInner() {
         <button
           type="button"
           className="btn btn-ghost"
-          disabled={busy || syncing || selected.size === 0}
+          disabled={busy || syncing || applyingGlossary || selected.size === 0}
           onClick={clearSelection}
         >
           Bỏ chọn
@@ -492,7 +657,7 @@ function MucLucInner() {
         <button
           type="button"
           className="btn btn-primary"
-          disabled={busy || syncing || selected.size === 0}
+          disabled={busy || syncing || applyingGlossary || selected.size === 0}
           onClick={onProcessSelected}
         >
           {imported
@@ -510,6 +675,11 @@ function MucLucInner() {
       {error ? (
         <p className="mb-3 text-sm text-red-400" role="alert">
           {error}
+        </p>
+      ) : null}
+      {info ? (
+        <p className="mb-3 text-sm text-amber-200" role="status">
+          {info}
         </p>
       ) : null}
       {progress ? (
@@ -567,7 +737,7 @@ function MucLucInner() {
                   type="checkbox"
                   className="h-4 w-4 accent-amber-600"
                   checked={checked}
-                  disabled={busy || syncing}
+                  disabled={busy || syncing || applyingGlossary}
                   onChange={() => toggleOne(key)}
                   aria-label={`Chọn ${chapter.title}`}
                 />
