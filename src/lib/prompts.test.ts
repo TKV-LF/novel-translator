@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PROMPTS } from "./prompts";
+import { DEFAULT_PROMPTS, GLOSSARY_EXTRACT_PROMPT } from "./prompts";
 import { GENRE_KEYS, GENRES, isGenreKey } from "./types";
 
 describe("DEFAULT_PROMPTS", () => {
@@ -38,6 +38,15 @@ describe("DEFAULT_PROMPTS", () => {
     expect(DEFAULT_PROMPTS.dong_nhan_harry_potter).toMatch(/Green nhỏ/);
     expect(DEFAULT_PROMPTS.dong_nhan).toMatch(/tiểu X/);
     expect(DEFAULT_PROMPTS.do_thi).toMatch(/tiểu Green/);
+  });
+
+  it("prefers glossary cấp trưởng over gendered trưởng nam sinh for HP prefects", () => {
+    expect(DEFAULT_PROMPTS.dong_nhan_harry_potter).toMatch(/cấp trưởng/);
+    expect(DEFAULT_PROMPTS.dong_nhan_harry_potter).toMatch(/trưởng nam sinh/);
+    expect(DEFAULT_PROMPTS.dong_nhan_harry_potter).toMatch(/级长/);
+    expect(DEFAULT_PROMPTS.dong_nhan).toMatch(/cấp trưởng/);
+    expect(GLOSSARY_EXTRACT_PROMPT).toMatch(/cấp trưởng/);
+    expect(GLOSSARY_EXTRACT_PROMPT).toMatch(/trưởng nam sinh/);
   });
 });
 

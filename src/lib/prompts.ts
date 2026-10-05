@@ -198,6 +198,7 @@ QUY TẮC TUYỆT ĐỐI:
    - Nhân vật OC (xuyên không, tự tạo): tên Hán → Hán Việt chữ Quốc ngữ; tên phương Tây do tác giả đặt thì giữ nhất quán, không Hán Việt hóa.
    - Không đổi tên OC thành tên canon, và ngược lại.
    - Xưng hô 小 + tên (Green, Harry…): theo glossary. 「tiểu X」 chứ không 「nhỏ X」 hay 「X nhỏ」, trừ khi chính glossary ghi vậy.
+   - Chức vụ 级长 / prefect: theo glossary. Nếu glossary là 「cấp trưởng」 thì viết cấp trưởng — CẤM tự đổi thành 「trưởng nam sinh」 hay 「trưởng nữ sinh」. 级长 là chức trung tính.
 5. KHÔNG giải thích, KHÔNG thêm bình luận, KHÔNG dùng markdown. Chỉ trả về bản dịch thuần túy.
 6. Giữ nguyên cấu trúc đoạn văn, xuống dòng hội thoại như bản gốc.`,
 
@@ -246,6 +247,7 @@ QUY TẮC TUYỆT ĐỐI:
    - 火焰杯 → Chiếc cốc lửa
    - 三强争霸赛 → Giải Tam Pháp thuật
    - 死神圣器 → Bảo bối Tử thần
+   - 级长 → theo glossary. Nếu glossary là 「cấp trưởng」 thì viết cấp trưởng — CẤM 「trưởng nam sinh」 (nam), CẤM 「trưởng nữ sinh」 (nữ). 级长 là chức vụ nội trú trung tính (Penelope Clearwater vẫn là cấp trưởng).
 5. Môn học: 变形术 → Biến hình; 魔咒课 → Thần chú; 魔药 → Độc dược; 草药 → Thảo dược; 天文 → Thiên văn; 魔法史 → Lịch sử Pháp thuật; 黑魔法防御术 → Phòng chống Nghệ thuật Hắc ám; 飞行课 → Bay; 占卜 → Tiên tri.
 6. Thần chú Latin (Expecto Patronum, Expelliarmus, Avada Kedavra, Wingardium Leviosa, Lumos, Accio…): GIỮ nguyên Latin như canon / sách Việt. Tên loại phép có thể Việt hóa (Patronus → Thần hộ mệnh) nhưng câu thần chú vẫn để Latin.
 7. OC xuyên không: tên Hán → Hán Việt chữ Quốc ngữ; đừng lẫn với tên canon. Giữ nhất quán với glossary nếu đã có.
@@ -264,6 +266,7 @@ Quy tắc:
 - original: dạng chữ Hán (hoặc Pinyin nếu không có Hán)
 - translated: BẮT BUỘC chữ Quốc ngữ. Tên người / địa danh phải là Hán Việt (Giang Thủy, không phải 江水, không phải Jiang Shui). CẤM copy nguyên chữ Hán vào translated.
 - Xưng hô 小+tên: nếu bản dịch / quy ước là tiểu X thì ghi 「tiểu Green」, không ghi 「nhỏ Green」 hay 「Green nhỏ」.
+- Chức vụ 级长: nếu quy ước / glossary là cấp trưởng thì ghi 「cấp trưởng」, không ghi 「trưởng nam sinh」 hay 「trưởng nữ sinh」.
 - type: character (nhân vật), location (địa danh), skill (công pháp/kỹ năng), sect (môn phái), item (vật phẩm), term (thuật ngữ khác), other
 - Chỉ lấy mục thực sự quan trọng (tối đa ~30). Bỏ qua từ thông dụng.
 - Nếu không có gì đáng lưu, trả về []`;

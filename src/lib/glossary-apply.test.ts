@@ -215,6 +215,64 @@ describe("planGlossaryReplacements", () => {
     expect(result.text).not.toMatch(/nhỏ/i);
     expect(result.text).not.toContain("小");
   });
+
+  it("plans trưởng nam sinh / trưởng nữ sinh when glossary wants cấp trưởng even if previousTranslated is missing", () => {
+    const planned = planGlossaryReplacements([
+      {
+        original: "级长",
+        translated: "cấp trưởng",
+        previousTranslated: null,
+      },
+    ]);
+
+    expect(planned).toEqual(
+      expect.arrayContaining([
+        { from: "级长", to: "cấp trưởng" },
+        { from: "trưởng nam sinh", to: "cấp trưởng" },
+        { from: "trưởng nữ sinh", to: "cấp trưởng" },
+      ])
+    );
+  });
+
+  it("does not invent prefect-gender variants when the user kept trưởng nam sinh", () => {
+    const planned = planGlossaryReplacements([
+      {
+        original: "级长",
+        translated: "trưởng nam sinh",
+        previousTranslated: null,
+      },
+    ]);
+
+    expect(planned).toEqual([{ from: "级长", to: "trưởng nam sinh" }]);
+    expect(planned).not.toEqual(
+      expect.arrayContaining([{ from: "trưởng nam sinh", to: "cấp trưởng" }])
+    );
+  });
+
+  it("remaps trưởng nam sinh in a chapter when glossary says cấp trưởng", () => {
+    const replacements = planGlossaryReplacements([
+      {
+        original: "级长",
+        translated: "cấp trưởng",
+        previousTranslated: null,
+      },
+      {
+        original: "克里瓦特级长",
+        translated: "Trưởng nam sinh Clearwater",
+        previousTranslated: null,
+      },
+    ]);
+    const result = applyTermReplacements(
+      'Vị trưởng nam sinh cao gầy lịch sự.\n"Trưởng nam sinh Clearwater."\nTrưởng nam sinh Penelope đưa ghi chép cho Sean.\nHuy hiệu trưởng nam sinh lấp lánh.\nMột nam sinh Gryffindor yếu ớt.',
+      replacements
+    );
+
+    expect(result.text).toBe(
+      'Vị cấp trưởng cao gầy lịch sự.\n"cấp trưởng Clearwater."\ncấp trưởng Penelope đưa ghi chép cho Sean.\nHuy hiệu cấp trưởng lấp lánh.\nMột nam sinh Gryffindor yếu ớt.'
+    );
+    expect(result.text).not.toMatch(/trưởng nam sinh/i);
+    expect(result.text).toContain("nam sinh Gryffindor");
+  });
 });
 
 describe("nextPreviousTranslated", () => {

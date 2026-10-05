@@ -169,6 +169,27 @@ export function planAddressFormReplacements(
     .map((from) => ({ from, to: translated }));
 }
 
+const CAP_TRUONG_KEY = "cấp trưởng";
+const PREFECT_GENDERED_FORMS = ["trưởng nam sinh", "trưởng nữ sinh"];
+
+function isCapTruong(translated: string): boolean {
+  return translated.trim().toLocaleLowerCase("vi") === CAP_TRUONG_KEY;
+}
+
+/** LLM often uses gendered prefect titles; remap them when glossary is neutral. */
+export function planPrefectFormReplacements(
+  entry: GlossaryApplyEntry
+): TermReplacement[] {
+  const translated = entry.translated.trim();
+  if (!isCapTruong(translated)) return [];
+
+  return PREFECT_GENDERED_FORMS
+    .filter(
+      (from) => from.toLocaleLowerCase("vi") !== translated.toLocaleLowerCase("vi")
+    )
+    .map((from) => ({ from, to: translated }));
+}
+
 export function planGlossaryReplacements(
   entries: GlossaryApplyEntry[],
   extra: TermReplacement[] = []
@@ -186,6 +207,7 @@ export function planGlossaryReplacements(
       planned.push({ from: original, to: translated });
     }
     planned.push(...planAddressFormReplacements(entry));
+    planned.push(...planPrefectFormReplacements(entry));
   }
   planned.push(...extra);
   return planned;
