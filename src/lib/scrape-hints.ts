@@ -26,8 +26,17 @@ export function getKnownHostLimitation(url: string): ScrapeErrorCode | null {
   return null;
 }
 
+/** Strip chapter-number phrases so "第404章" / "chapter 404" are not HTTP 404. */
+function titleWithoutChapterNumbers(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/第\s*\d+\s*章/g, " ")
+    .replace(/chapter\s*\d+/gi, " ")
+    .replace(/chương\s*\d+/gi, " ");
+}
+
 export function isJunkScrapeContent(content: string, title: string): boolean {
-  const t = title.toLowerCase();
+  const t = titleWithoutChapterNumbers(title);
   if (
     /(?<![\d])404(?![\d])|403 forbidden|just a moment|captcha|security verification/i.test(
       t

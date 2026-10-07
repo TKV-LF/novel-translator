@@ -157,4 +157,34 @@ describe("fetchChapterViaJina 69shuba", () => {
     expect(parsed.content).toContain("404号宿舍");
     expect(parsed.content).toContain("希恩");
   });
+
+  it("keeps chapter 第404章 instead of treating the title as a 404 page", async () => {
+    const content = [
+      "第404章 402：不期而遇的猫（25）",
+      "离开炼金术办公室时，天色暗沉。",
+      "海莲娜呼唤道，她的声音很轻，像是天上的云朵。",
+      "那么，亲爱的海莲娜，你知道爱是什么吗？",
+      "是一只不期而遇的猫。",
+      "(本章完)",
+    ].join("\n\n");
+
+    stubJina({
+      json: jsonResponse({
+        code: 200,
+        data: {
+          title: "霍格沃茨的学习面板-第404章 402：不期而遇的猫（25）-69书吧",
+          content,
+        },
+      }),
+      html: textResponse("<html><body><p>short</p></body></html>"),
+    });
+
+    const parsed = await fetchChapterViaJina(
+      "https://www.69shuba.com/txt/90442/40980692",
+      shubaAdapter
+    );
+    expect(parsed.title).toContain("第404章");
+    expect(parsed.content).toContain("不期而遇的猫");
+    expect(parsed.content).toContain("海莲娜");
+  });
 });

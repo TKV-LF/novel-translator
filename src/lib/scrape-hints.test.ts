@@ -49,6 +49,26 @@ describe("scrape-hints", () => {
     ).toBe(false);
   });
 
+  it("does not treat chapter titles like 第404章 as HTTP 404 pages", () => {
+    expect(
+      isJunkScrapeContent(
+        [
+          "第404章 402：不期而遇的猫（25）",
+          "离开炼金术办公室时，天色暗沉。",
+          "海莲娜呼唤道，她的声音很轻，像是天上的云朵。",
+          "(本章完)",
+        ].join("\n"),
+        "霍格沃茨的学习面板-第404章 402：不期而遇的猫（25）-69书吧"
+      )
+    ).toBe(false);
+    expect(
+      isJunkScrapeContent(
+        "Chapter body long enough to count as real text here.",
+        "Novel Title - Chương 404 Gặp mèo"
+      )
+    ).toBe(false);
+  });
+
   it("returns url hint for blocked hosts", () => {
     expect(urlInputHint("https://twkan.com/x")).toMatch(/twkan/i);
   });

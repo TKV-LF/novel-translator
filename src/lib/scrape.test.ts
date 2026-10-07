@@ -15,6 +15,54 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("fetchAndParseChapter 69shuba", () => {
+  it("saves 第404章 via Jina instead of treating the title as a 404 page", async () => {
+    const chapterUrl = "https://www.69shuba.com/txt/90442/40980692";
+    const chapterText = [
+      "第404章 402：不期而遇的猫（25）",
+      "离开炼金术办公室时，天色暗沉。",
+      "海莲娜呼唤道，她的声音很轻，像是天上的云朵。",
+      "那么，亲爱的海莲娜，你知道爱是什么吗？是一只不期而遇的猫。",
+      "(本章完)",
+    ].join("\n\n");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (!url.includes("r.jina.ai")) {
+          return new Response("Just a moment...", { status: 403 });
+        }
+        const headers = new Headers(init?.headers);
+        if (
+          headers.get("X-Return-Format") === "html" ||
+          headers.get("Accept") === "text/html"
+        ) {
+          return new Response("<html><body><p>short</p></body></html>", {
+            status: 200,
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            code: 200,
+            data: {
+              title:
+                "霍格沃茨的学习面板-第404章 402：不期而遇的猫（25）-69书吧",
+              content: chapterText,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      })
+    );
+
+    const parsed = await fetchAndParseChapter(chapterUrl);
+    expect(parsed.title).toContain("第404章");
+    expect(parsed.content).toContain("海莲娜");
+    expect(parsed.content.length).toBeGreaterThan(20);
+  });
+});
+
 describe("fetchAndParseChapter wikicv", () => {
   it("saves chapter 1404 via Jina instead of treating the title as a 404 page", async () => {
     vi.stubGlobal(
