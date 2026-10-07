@@ -187,4 +187,32 @@ describe("fetchChapterViaJina 69shuba", () => {
     expect(parsed.content).toContain("不期而遇的猫");
     expect(parsed.content).toContain("海莲娜");
   });
+
+  it("keeps chapter 第406章 404：… instead of treating the subtitle as HTTP 404", async () => {
+    const content = [
+      "第406章 404：斯莱特林的挂坠盒",
+      "希恩从口袋里取出那枚挂坠盒，银色的蛇纹在烛光下微微发亮。",
+      "斯莱特林的遗产就在眼前，他却迟迟没有打开。",
+      "(本章完)",
+    ].join("\n\n");
+
+    stubJina({
+      json: jsonResponse({
+        code: 200,
+        data: {
+          title: "霍格沃茨的学习面板-第406章 404：斯莱特林的挂坠盒-69书吧",
+          content,
+        },
+      }),
+      html: textResponse("<html><body><p>short</p></body></html>"),
+    });
+
+    const parsed = await fetchChapterViaJina(
+      "https://www.69shuba.com/txt/90442/40981352",
+      shubaAdapter
+    );
+    expect(parsed.title).toContain("第406章");
+    expect(parsed.title).toContain("404：");
+    expect(parsed.content).toContain("斯莱特林的挂坠盒");
+  });
 });

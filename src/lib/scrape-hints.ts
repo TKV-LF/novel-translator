@@ -35,12 +35,33 @@ function titleWithoutChapterNumbers(title: string): string {
     .replace(/chương\s*\d+/gi, " ");
 }
 
+/**
+ * Title looks like a real HTTP/site 404 page — not a story subtitle like "404：挂坠盒".
+ * Bare "404" is too common in novel indexes (第N章 MMM：…); require error context.
+ */
+function titleLooksLikeHttp404(title: string): boolean {
+  if (
+    /404\s*(?:not\s*found|error|错误)|page not found|页面不存在/i.test(title)
+  ) {
+    return true;
+  }
+  // Site error slugs: "69书吧_404", "/404", "-404" at a boundary
+  if (/[_/]404(?:\b|_|$)/i.test(title)) {
+    return true;
+  }
+  // Title is essentially only "404" after stripping chapter markers / punctuation
+  const compact = title.replace(/[\s\-_|·•]+/g, " ").trim();
+  if (/^404$/i.test(compact)) {
+    return true;
+  }
+  return false;
+}
+
 export function isJunkScrapeContent(content: string, title: string): boolean {
   const t = titleWithoutChapterNumbers(title);
   if (
-    /(?<![\d])404(?![\d])|403 forbidden|just a moment|captcha|security verification/i.test(
-      t
-    )
+    /403 forbidden|just a moment|captcha|security verification/i.test(t) ||
+    titleLooksLikeHttp404(t)
   ) {
     return true;
   }

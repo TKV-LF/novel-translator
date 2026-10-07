@@ -69,6 +69,36 @@ describe("scrape-hints", () => {
     ).toBe(false);
   });
 
+  it("does not treat story subtitles like 404：… as HTTP 404 pages", () => {
+    const body = [
+      "第406章 404：斯莱特林的挂坠盒",
+      "希恩从口袋里取出那枚挂坠盒，银色的蛇纹在烛光下微微发亮。",
+      "斯莱特林的遗产就在眼前，他却迟迟没有打开。",
+      "(本章完)",
+    ].join("\n");
+    expect(
+      isJunkScrapeContent(body, "第406章 404：斯莱特林的挂坠盒")
+    ).toBe(false);
+    expect(
+      isJunkScrapeContent(
+        body,
+        "霍格沃茨的学习面板-第406章 404：斯莱特林的挂坠盒-69书吧"
+      )
+    ).toBe(false);
+    expect(
+      isJunkScrapeContent(
+        "第405章 403：密室余波\n正文继续。".repeat(3),
+        "第405章 403：密室余波"
+      )
+    ).toBe(false);
+    expect(
+      isJunkScrapeContent(
+        "第402章 400：开端\n正文。".repeat(3),
+        "霍格沃茨的学习面板-第402章 400：开端-69书吧"
+      )
+    ).toBe(false);
+  });
+
   it("returns url hint for blocked hosts", () => {
     expect(urlInputHint("https://twkan.com/x")).toMatch(/twkan/i);
   });

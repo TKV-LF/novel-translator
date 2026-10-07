@@ -61,6 +61,52 @@ describe("fetchAndParseChapter 69shuba", () => {
     expect(parsed.content).toContain("海莲娜");
     expect(parsed.content.length).toBeGreaterThan(20);
   });
+
+  it("saves 第406章 404：… via Jina instead of treating the subtitle as HTTP 404", async () => {
+    const chapterUrl = "https://www.69shuba.com/txt/90442/40981352";
+    const chapterText = [
+      "第406章 404：斯莱特林的挂坠盒",
+      "希恩从口袋里取出那枚挂坠盒，银色的蛇纹在烛光下微微发亮。",
+      "斯莱特林的遗产就在眼前，他却迟迟没有打开。",
+      "(本章完)",
+    ].join("\n\n");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (!url.includes("r.jina.ai")) {
+          return new Response("Just a moment...", { status: 403 });
+        }
+        const headers = new Headers(init?.headers);
+        if (
+          headers.get("X-Return-Format") === "html" ||
+          headers.get("Accept") === "text/html"
+        ) {
+          return new Response("<html><body><p>short</p></body></html>", {
+            status: 200,
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            code: 200,
+            data: {
+              title:
+                "霍格沃茨的学习面板-第406章 404：斯莱特林的挂坠盒-69书吧",
+              content: chapterText,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      })
+    );
+
+    const parsed = await fetchAndParseChapter(chapterUrl);
+    expect(parsed.title).toContain("第406章");
+    expect(parsed.title).toContain("404：");
+    expect(parsed.content).toContain("挂坠盒");
+    expect(parsed.content.length).toBeGreaterThan(20);
+  });
 });
 
 describe("fetchAndParseChapter wikicv", () => {
