@@ -1,0 +1,17 @@
+{
+  "name": "Novel Translator",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev",
+      "description": "Next.js dev server (webpack — required by next-pwa) on http://localhost:3000. Uses the DATABASE_URL, DEEPSEEK_API_KEY, SESSION_PASSWORD, and INVITE_CODE secrets."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 3000
+    }
+  ]
+}
