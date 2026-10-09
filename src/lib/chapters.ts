@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { syncNovelCatalog } from "@/lib/catalog";
 import { fetchAndParseChapter } from "@/lib/scrape";
+import { rewriteToScrapableUrl } from "@/lib/scrape-hints";
 import { resolveAdapter } from "@/lib/sites";
 import { guessChapterNumber, inferBookUrl } from "@/lib/sites/types";
 import {
@@ -197,12 +198,13 @@ export async function openBookFromUrl(opts: {
   genre: string;
   userId: string;
 }) {
-  const adapter = resolveAdapter(opts.bookUrl);
+  const bookUrl = rewriteToScrapableUrl(opts.bookUrl);
+  const adapter = resolveAdapter(bookUrl);
   if (!adapter) throw new Error("UNSUPPORTED_SITE");
 
   let host: string | null = null;
   try {
-    host = new URL(opts.bookUrl).hostname;
+    host = new URL(bookUrl).hostname;
   } catch {
     host = null;
   }
@@ -212,11 +214,11 @@ export async function openBookFromUrl(opts: {
     title: opts.title?.trim() || "Truyện chưa đặt tên",
     genre: opts.genre,
     sourceHost: host,
-    sourceNovelUrl: opts.bookUrl,
+    sourceNovelUrl: bookUrl,
     userId: opts.userId,
   });
 
-  const catalog = await syncNovelCatalog(novel.id, opts.bookUrl);
+  const catalog = await syncNovelCatalog(novel.id, bookUrl);
   const refreshed = await db.novel.findUnique({ where: { id: novel.id } });
   return { novel: refreshed ?? novel, catalog };
 }

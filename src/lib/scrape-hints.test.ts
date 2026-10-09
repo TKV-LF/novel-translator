@@ -2,11 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   getKnownHostLimitation,
   isJunkScrapeContent,
+  rewriteToScrapableUrl,
   urlInputHint,
 } from "./scrape-hints";
 
 describe("scrape-hints", () => {
-  it("blocks 69shuba.tw and twkan early", () => {
+  it("rewrites twkan book TOC to 69shuba but leaves chapter URLs blocked", () => {
+    expect(
+      rewriteToScrapableUrl("https://twkan.com/book/86781/index.html")
+    ).toBe("https://www.69shuba.com/book/86781/");
+    expect(rewriteToScrapableUrl("https://twkan.com/book/86781/")).toBe(
+      "https://www.69shuba.com/book/86781/"
+    );
+    expect(
+      rewriteToScrapableUrl("https://twkan.com/txt/81641/48724035")
+    ).toBe("https://twkan.com/txt/81641/48724035");
+    expect(
+      getKnownHostLimitation("https://twkan.com/book/86781/index.html")
+    ).toBeNull();
     expect(
       getKnownHostLimitation("https://69shuba.tw/read/327186/638844")
     ).toBe("SCRAPE_BLOCKED_69SHUBA_TW");
@@ -101,5 +114,12 @@ describe("scrape-hints", () => {
 
   it("returns url hint for blocked hosts", () => {
     expect(urlInputHint("https://twkan.com/x")).toMatch(/twkan/i);
+    expect(urlInputHint("https://twkan.com/txt/1/2")).toMatch(/twkan|bookmarklet/i);
+  });
+
+  it("hints that twkan book TOC uses the 69shuba mirror", () => {
+    expect(urlInputHint("https://twkan.com/book/86781/index.html")).toMatch(
+      /69shuba/i
+    );
   });
 });

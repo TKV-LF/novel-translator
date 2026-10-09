@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { GENRES } from "@/lib/types";
 import { loadPrefs } from "@/lib/prefs";
 import { urlInputHint } from "@/lib/scrape-hints";
-import { isWikicvTocUrl, isWikicvUrl } from "@/lib/sites/types";
+import { isBookIndexUrl, isWikicvUrl } from "@/lib/sites/types";
 
 type NovelOption = { id: string; title: string; genre: string };
 
@@ -51,7 +51,7 @@ export default function ThemPage() {
       setLoading(true);
       setError("");
       try {
-        if (mode === "url" && isWikicvTocUrl(url)) {
+        if (mode === "url" && isBookIndexUrl(url)) {
           const res = await fetch("/api/novels/open-book", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -208,7 +208,7 @@ export default function ThemPage() {
         {mode === "url" ? (
           <div>
             <label className="label" htmlFor="url">
-              URL chương hoặc mục lục Wikicv
+              URL chương hoặc mục lục (/book/…)
             </label>
             <input
               id="url"
@@ -217,7 +217,7 @@ export default function ThemPage() {
               required
               value={url}
               onChange={(e) => onUrlChange(e.target.value)}
-              placeholder="https://www.69shuba.com/txt/..."
+              placeholder="https://www.69shuba.com/book/86781/"
             />
             <p className="mt-1 text-xs text-slate-500">
               URL ổn định: <strong className="text-slate-400">69shuba.com</strong>,{" "}
@@ -226,8 +226,8 @@ export default function ThemPage() {
               <strong className="text-slate-400">wikicv.org</strong>
             </p>
             <p className="mt-0.5 text-xs text-amber-700/90">
-              69shuba.tw / twkan.com: không dán URL — mở chương trên site rồi
-              bấm bookmarklet «Dịch Truyện» (trang Cài đặt), hoặc tab «Dán văn bản».
+              twkan.com mục lục /book/… → lấy qua 69shuba cùng mã. Chương twkan /
+              69shuba.tw: bookmarklet «Dịch Truyện» (Cài đặt) hoặc tab «Dán văn bản».
             </p>
             {urlHint ? (
               <p className="mt-2 text-sm text-amber-400" role="status">

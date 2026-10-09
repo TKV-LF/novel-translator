@@ -8,7 +8,7 @@ import {
   uureadAdapter,
 } from "./adapters";
 import { resolveAdapter } from "./index";
-import { inferBookUrl, isWikicvTocUrl } from "./types";
+import { inferBookUrl, isBookIndexUrl, isWikicvTocUrl } from "./types";
 import { isJunkScrapeContent } from "../scrape-hints";
 import {
   cleanWikicvChapterText,
@@ -66,6 +66,37 @@ describe("site adapters", () => {
     expect(parsed.content).toContain("总裁");
     expect(parsed.nextUrl).toContain("/novel/3/4.html");
     expect(parsed.prevUrl).toContain("/novel/3/2.html");
+  });
+
+  it("parses twkan book index with /txt/ chapter links", () => {
+    const url = "https://twkan.com/book/86781/index.html";
+    const parsed = twkanAdapter.parseBookIndex?.(
+      fixture("twkan-book.html"),
+      url
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed?.novelTitle).toContain("海贼");
+    expect(parsed?.chapters.length).toBe(3);
+    expect(parsed?.chapters[0]?.sourceUrl).toBe(
+      "https://twkan.com/txt/86781/39732722"
+    );
+    expect(parsed?.chapters[0]?.chapterNumber).toBe(1);
+  });
+
+  it("detects book index URLs including twkan /book/…/index.html", () => {
+    expect(isBookIndexUrl("https://twkan.com/book/86781/index.html")).toBe(
+      true
+    );
+    expect(isBookIndexUrl("https://www.69shuba.com/book/86781/")).toBe(true);
+    expect(
+      isBookIndexUrl("https://www.69shuba.com/txt/86781/39732722")
+    ).toBe(false);
+    expect(inferBookUrl("https://twkan.com/book/86781/index.html")).toBe(
+      "https://twkan.com/book/86781/"
+    );
+    expect(inferBookUrl("https://twkan.com/txt/86781/39732722")).toBe(
+      "https://twkan.com/book/86781/"
+    );
   });
 
   it("parses uuread fixture", () => {

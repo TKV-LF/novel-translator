@@ -160,16 +160,34 @@ export const twkanAdapter: SiteAdapter = {
       cleanText($("title").text().split("_")[0] || "");
     const content = extractContent($, [
       "#content",
+      ".txtnav",
       ".content",
       ".chapter-content",
       "#chaptercontent",
+      "#htmlContent",
     ]);
     return {
       title: title || "Chương",
       content,
       nextUrl: findNavUrl($, url, [/下一[章页]/, /下页/, /下一章/]),
       prevUrl: findNavUrl($, url, [/上一[章页]/, /上页/, /上一章/]),
+      novelTitle:
+        cleanText($(".bookname, .path a").eq(1).text()) || null,
     };
+  },
+  parseBookIndex(html, url) {
+    const $ = cheerio.load(html);
+    const novelTitle =
+      cleanText($(".bookinfo h1, .bookname h1, h1").first().text()) ||
+      cleanText($("title").text().split("_")[0] || "") ||
+      null;
+    // Live twkan TOC uses /txt/{book}/{chapter} (69shuba-style); fixtures also /novel/.
+    let chapters = parseTxtLinksFromHtml($, url, /\/txt\/\d+\/\d+/);
+    if (!chapters.length) {
+      chapters = parseTxtLinksFromHtml($, url, /\/novel\/\d+\/\d+/);
+    }
+    if (!chapters.length) return null;
+    return { novelTitle, bookUrl: url, chapters };
   },
 };
 

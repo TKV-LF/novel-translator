@@ -17,9 +17,35 @@ export function hostnameFromUrl(url: string): string | null {
   }
 }
 
+/**
+ * twkan.com is Cloudflare-blocked (direct + Jina). Book TOC pages share numeric
+ * IDs with 69shuba.com — rewrite `/book/{id}` so open-book / sync-toc still work.
+ * Chapter `/txt/` IDs do NOT reliably match; those stay blocked (bookmarklet).
+ */
+export function rewriteToScrapableUrl(url: string): string {
+  const trimmed = url.trim();
+  try {
+    const u = new URL(trimmed);
+    const host = u.hostname.toLowerCase();
+    if (!host.includes("twkan")) return trimmed;
+    const book = u.pathname.match(
+      /^\/book\/(\d+)(?:\/(?:index\.html)?)?\/?$/i
+    );
+    if (book?.[1]) {
+      return `https://www.69shuba.com/book/${book[1]}/`;
+    }
+  } catch {
+    // fall through
+  }
+  return trimmed;
+}
+
 /** Sites we know cannot be fetched server-side — fail fast with a clear message. */
 export function getKnownHostLimitation(url: string): ScrapeErrorCode | null {
-  const host = hostnameFromUrl(url);
+  const scrapable = rewriteToScrapableUrl(url);
+  if (scrapable !== url.trim()) return null;
+
+  const host = hostnameFromUrl(scrapable);
   if (!host) return null;
   if (host.includes("69shuba.tw")) return "SCRAPE_BLOCKED_69SHUBA_TW";
   if (host.includes("twkan")) return "SCRAPE_BLOCKED_TWKAN";
@@ -98,7 +124,7 @@ export function userFacingScrapeError(code: string): string {
     case "SCRAPE_BLOCKED_69SHUBA_TW":
       return "69shuba.tw có CAPTCHA — server không tải được. Mở chương trên site, bấm bookmarklet «Dịch Truyện» (Cài đặt), hoặc dùng www.69shuba.com /txt/.";
     case "SCRAPE_BLOCKED_TWKAN":
-      return "twkan.com bị Cloudflare chặn. Mở chương trên site rồi bấm bookmarklet «Dịch Truyện» (trang Cài đặt).";
+      return "twkan.com chương bị Cloudflare chặn. Dán URL mục lục /book/… (lấy qua 69shuba), hoặc mở chương rồi bấm bookmarklet «Dịch Truyện» (Cài đặt).";
     case "EMPTY_CONTENT":
       return "Không tìm thấy nội dung chương trên trang.";
     case "SCRAPE_TIMEOUT":
@@ -113,7 +139,13 @@ export function userFacingScrapeError(code: string): string {
 }
 
 export function urlInputHint(url: string): string | null {
-  const code = getKnownHostLimitation(url);
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  const rewritten = rewriteToScrapableUrl(trimmed);
+  if (rewritten !== trimmed) {
+    return "twkan.com mục lục sẽ lấy qua bản 69shuba.com cùng mã truyện (Cloudflare chặn twkan).";
+  }
+  const code = getKnownHostLimitation(trimmed);
   if (code) return userFacingScrapeError(code);
   return null;
 }

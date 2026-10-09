@@ -84,6 +84,14 @@ export function inferBookUrl(url: string): string | null {
       const book = u.pathname.match(/^\/book\/(\d+)/);
       if (book) return `${u.origin}/book/${book[1]}/`;
     }
+    if (host.includes("twkan")) {
+      const txt = u.pathname.match(/^\/txt\/(\d+)\//);
+      if (txt) return `${u.origin}/book/${txt[1]}/`;
+      const book = u.pathname.match(/^\/book\/(\d+)/);
+      if (book) return `${u.origin}/book/${book[1]}/`;
+      const novel = u.pathname.match(/^\/novel\/(\d+)\//);
+      if (novel) return `${u.origin}/book/${novel[1]}/`;
+    }
     if (host.includes("uukanshu")) {
       const m = u.pathname.match(/^\/(?:book|txt)\/(\d+)/);
       if (m) return `${u.origin}/book/${m[1]}/`;
@@ -101,6 +109,17 @@ export function inferBookUrl(url: string): string | null {
     return null;
   }
   return null;
+}
+
+/** True for mục lục / book-index URLs (not individual chapter pages). */
+export function isBookIndexUrl(url: string): boolean {
+  if (isWikicvTocUrl(url)) return true;
+  try {
+    const path = new URL(url.trim()).pathname;
+    return /^\/book\/\d+(?:\/(?:index\.html)?)?\/?$/i.test(path);
+  } catch {
+    return false;
+  }
 }
 
 export function isWikicvHost(hostname: string): boolean {

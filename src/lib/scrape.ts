@@ -1,6 +1,10 @@
 import { resolveAdapter } from "./sites";
 import type { ParsedChapter } from "./sites/types";
-import { getKnownHostLimitation, isJunkScrapeContent } from "./scrape-hints";
+import {
+  getKnownHostLimitation,
+  isJunkScrapeContent,
+  rewriteToScrapableUrl,
+} from "./scrape-hints";
 import { fetchChapterViaJina } from "./scrape-jina";
 
 export { userFacingScrapeError } from "./scrape-hints";
@@ -44,7 +48,8 @@ async function fetchDirect(url: string, adapter: ReturnType<typeof resolveAdapte
 }
 
 export async function fetchAndParseChapter(url: string): Promise<ParsedChapter> {
-  const adapter = resolveAdapter(url);
+  const scrapableUrl = rewriteToScrapableUrl(url);
+  const adapter = resolveAdapter(scrapableUrl);
   if (!adapter) {
     throw new Error("UNSUPPORTED_SITE");
   }
@@ -55,7 +60,7 @@ export async function fetchAndParseChapter(url: string): Promise<ParsedChapter> 
   }
 
   try {
-    return await fetchDirect(url, adapter);
+    return await fetchDirect(scrapableUrl, adapter);
   } catch (directErr) {
     const code =
       directErr instanceof Error ? directErr.message : "SCRAPE_FAILED";
@@ -64,7 +69,7 @@ export async function fetchAndParseChapter(url: string): Promise<ParsedChapter> 
     }
 
     try {
-      const parsed = await fetchChapterViaJina(url, adapter);
+      const parsed = await fetchChapterViaJina(scrapableUrl, adapter);
       if (
         isJunkScrapeContent(parsed.content, parsed.title)
       ) {

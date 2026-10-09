@@ -66,7 +66,7 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/thu-vien`
 | `wikicv.org` / `wikicv.net` | ✅ mục lục | Đã dịch sẵn — tải về, không gọi DeepSeek |
 | `uukanshu.cc` | ✅ | |
 | `69shuba.tw` | ❌ auto URL | CAPTCHA — bookmarklet «Dịch Truyện» |
-| `twkan.com` | ❌ auto URL | Cloudflare — bookmarklet «Dịch Truyện» |
+| `twkan.com` | ⚠️ mục lục only | Cloudflare chặn trực tiếp/Jina. URL `/book/{id}` được chuyển sang `69shuba.com` cùng mã truyện. Chương `/txt/…` → bookmarklet «Dịch Truyện» |
 
 Unsupported hosts return a Vietnamese error. QQ阅读 / Qidian are out of v1.
 

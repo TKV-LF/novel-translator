@@ -1,5 +1,6 @@
 import { parseTxtLinksFromMarkdown } from "./sites/adapters";
 import { resolveAdapter } from "./sites";
+import { rewriteToScrapableUrl } from "./scrape-hints";
 import {
   cleanText,
   normalizeBookUrl,
@@ -39,7 +40,7 @@ function chapterLinkPattern(url: string): RegExp {
       return /\/(?:b|txt)\/\d+\/\d+/;
     }
     if (host.includes("twkan")) {
-      return /\/novel\/\d+\/\d+/;
+      return /\/(?:txt|novel)\/\d+\/\d+/;
     }
     if (host.includes("uuread")) {
       return /\/ch\/\d+/;
@@ -157,7 +158,7 @@ async function fetchBookIndexViaJina(
 export async function fetchAndParseBookIndex(
   bookUrl: string
 ): Promise<ParsedBookIndex> {
-  const url = normalizeBookUrl(bookUrl);
+  const url = normalizeBookUrl(rewriteToScrapableUrl(bookUrl));
   const adapter = resolveAdapter(url);
   if (!adapter) {
     throw new Error("UNSUPPORTED_SITE");
